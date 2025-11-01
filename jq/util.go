@@ -1,0 +1,79 @@
+package jqNormalizer
+
+import (
+	"diploma/rules"
+	"fmt"
+	"log"
+	"strings"
+
+	"github.com/itchyny/gojq"
+)
+
+const (
+	commonRule = "\n%[1]s: (.%[1]s | %s )"
+
+	nullRule = "if . == null then . else "
+
+	booleanRule      = "if type == \"string\" then (. == \"true\") else . end"
+	integerRule      = nullRule + "tonumber | round end"
+	stringRule       = nullRule + "tostring end"
+	floatRule        = nullRule + "tonumber * 1.0 end"
+	booleanArrayRule = nullRule + "map(if type == \"string\" then (. == \"true\") else . end) end"
+	integerArrayRule = nullRule + "map(" + nullRule + "tonumber | round end) end"
+	stringArrayRule  = nullRule + "map(" + nullRule + "tostring end) end"
+	floatArrayRule   = nullRule + "map(" + nullRule + "tonumber * 1.0 end) end"
+)
+
+func jqRules() map[string]string {
+	return map[string]string{
+		"boolean":        booleanRule,
+		"integer":        integerRule,
+		"string":         stringRule,
+		"float":          floatRule,
+		"array<boolean>": booleanArrayRule,
+		"array<integer>": integerArrayRule,
+		"array<string>":  stringArrayRule,
+		"array<float>":   floatArrayRule,
+	}
+}
+
+func cachedCodeRules() map[string]*gojq.Code {
+	cachedCodeRules := make(map[string]*gojq.Code)
+	for fieldType, jqRule := range jqRules() {
+		cachedCodeRules[fieldType] = compileJqCode(jqRule)
+	}
+	return cachedCodeRules
+}
+
+func jqFilter(fields map[rules.Field]rules.FieldType) string {
+	var jqRulesArray []string
+	jqRules := jqRules()
+
+	for field, fieldType := range fields {
+		jqRule, ok := jqRules[fieldType.String()]
+		if ok {
+			jqRulesArray = append(jqRulesArray, fmt.Sprintf(commonRule, field, jqRule))
+		}
+	}
+
+	return fmt.Sprintf("{%s\n}", strings.Join(jqRulesArray, ","))
+}
+
+func compileJqCode(jqFilter string) (compiledCode *gojq.Code) {
+	jqQuery, err := gojq.Parse(jqFilter)
+	if err != nil {
+		if parseErr, ok := err.(*gojq.ParseError); ok {
+			log.Printf("JQ parse error at position %d, token %q: %v", parseErr.Offset, parseErr.Token, parseErr.Error())
+		} else {
+			log.Printf("failed to parse JQ query: %v", err)
+		}
+		return
+	}
+
+	compiledCode, err = gojq.Compile(jqQuery)
+	if err != nil {
+		log.Printf("failed to compile JQ query: %v", err)
+		return nil
+	}
+	return
+}
