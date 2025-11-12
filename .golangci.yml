@@ -14,7 +14,7 @@ linters:
     errcheck:
       check-type-assertions: true
     mnd:
-      checks: ["argument", "case", "condition", "operation", return"] # minus "assign"
+      checks: ["argument", "case", "condition", "operation", "return"] # minus "assign"
       ignored-numbers:
         - 1024 # KB
     depguard:
