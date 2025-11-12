@@ -36,7 +36,7 @@ vet:
 # Run linters (requires golangci-lint to be installed)
 lint:
 	@echo "Running linters..."
-	golangci-lint run --config .golangci.yml
+	golangci-lint run --fix --config .golangci.yml
 
 # Run linters with verbose output (shows which linters are enabled)
 lint-verbose:

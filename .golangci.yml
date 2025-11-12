@@ -1,10 +1,70 @@
 version: "2"
 
-run:
-  timeout: 5m
-
 linters:
-  enable-all: true
+  default: all
+  disable:
+    - wsl
+    - recvcheck
+    - nonamedreturns
+    - noinlineerr
+    - exhaustruct
+    - exhaustive
+    - err113
+  settings:
+    errcheck:
+      check-type-assertions: true
+    mnd:
+      checks: ["argument", "case", "condition", "operation", return"] # minus "assign"
+      ignored-numbers:
+        - 1024 # KB
+    depguard:
+      rules:
+        main:
+          list-mode: strict
+          allow:
+            - $gostd
+            - diploma
+            - github.com/itchyny/gojq$
+            - github.com/stretchr/testify/assert$
+    revive:
+      enable-all-rules: true
+      rules:
+        - name: package-comments
+          disabled: true
+        - name: add-constant # maybe add this in the future
+          disabled: true
+        - name: line-length-limit
+          arguments: [128]
+        - name: unexported-return
+          disabled: true
+        - name: call-to-gc
+          disabled: true # maybe add this in the future
+        - name: bare-return
+          disabled: true
+        - name: flag-parameter
+          disabled: true # maybe add this in the future
+        - name: cognitive-complexity
+          arguments: [9]
+  exclusions:
+    rules:
+      - path: 'validate_util\.go'
+        linters:
+          - gosec
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 
-issues:
-  exclude-use-default: false
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

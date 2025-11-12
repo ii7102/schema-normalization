@@ -1,11 +1,12 @@
-package jqNormalizer
+package jqnormalizer
 
 import (
-	"diploma/rules"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
 
+	"diploma/rules"
 	"github.com/itchyny/gojq"
 )
 
@@ -39,6 +40,7 @@ func jqRules() map[string]string {
 
 func jqFilter(fields map[rules.Field]rules.FieldType) string {
 	var jqRulesArray []string
+
 	jqRules := jqRules()
 
 	for field, fieldType := range fields {
@@ -54,18 +56,22 @@ func jqFilter(fields map[rules.Field]rules.FieldType) string {
 func compileJqCode(jqFilter string) (compiledCode *gojq.Code) {
 	jqQuery, err := gojq.Parse(jqFilter)
 	if err != nil {
-		if parseErr, ok := err.(*gojq.ParseError); ok {
+		parseErr := &gojq.ParseError{}
+		if errors.As(err, &parseErr) {
 			log.Printf("JQ parse error at position %d, token %q: %v", parseErr.Offset, parseErr.Token, parseErr.Error())
 		} else {
 			log.Printf("failed to parse JQ query: %v", err)
 		}
+
 		return
 	}
 
 	compiledCode, err = gojq.Compile(jqQuery)
 	if err != nil {
-		log.Printf("failed to compile JQ query: %v", err)
+		log.Println("failed to compile JQ query: ", err)
+
 		return nil
 	}
+
 	return
 }

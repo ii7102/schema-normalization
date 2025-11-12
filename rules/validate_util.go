@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"reflect"
+	"strconv"
 )
 
 const (
@@ -28,7 +29,6 @@ func objectFields() map[Field]FieldType {
 }
 
 func testNormalizerOptions() []NormalizerOption {
-
 	stringEnum, _ := EnumOf(StringType(), stringEnumValues()...)
 	floatEnum, _ := EnumOf(FloatType(), floatEnumValues()...)
 
@@ -46,6 +46,9 @@ func testNormalizerOptions() []NormalizerOption {
 		WithArrayOfFloatFields(ArrayOf(FloatType()).Field()),
 		WithArrayOfEnumOfFloatFields(floatEnumValues(), ArrayOf(floatEnum).Field()),
 		WithObjectField(objectFields(), objectType.Field()),
+		WithDateFields(DateType().Field()),
+		WithTimestampFields(TimestampType().Field()),
+		WithDateTimeFields(DateTimeType().Field()),
 	}
 }
 
@@ -129,8 +132,8 @@ func stringTypeTests(rnd randomTestValues) []inputOutput {
 		{input: -1.1, output: "-1.1"},
 		{input: 123456789, output: "123456789"},
 		{input: rnd.string, output: rnd.string},
-		{input: rnd.int, output: fmt.Sprintf("%d", rnd.int)},
-		{input: rnd.int63, output: fmt.Sprintf("%d", rnd.int63)},
+		{input: rnd.int, output: strconv.Itoa(rnd.int)},
+		{input: rnd.int63, output: strconv.FormatInt(rnd.int63, 10)},
 		{input: rnd.float63, output: fmt.Sprintf("%v", rnd.float63)},
 		{input: nil, output: nil},
 	}
@@ -178,69 +181,203 @@ func stringEnumTests() []inputOutput {
 
 func arrayOfBooleanTypeTests() []inputOutput {
 	return []inputOutput{
-		{input: []any{true, false, true, false}, output: []any{true, false, true, false}},
-		{input: []any{"true", "false", "true", "false"}, output: []any{true, false, true, false}},
-		{input: []any{nil, nil, nil, nil}, output: []any{}},
-		{input: []any{true, false, "true", "false", nil, nil}, output: []any{true, false, true, false}},
-		{input: []any{}, output: []any{}},
+		{
+			input:  []any{true, false, true, false},
+			output: []any{true, false, true, false},
+		},
+		{
+			input:  []any{"true", "false", "true", "false"},
+			output: []any{true, false, true, false},
+		},
+		{
+			input:  []any{nil, nil, nil, nil},
+			output: []any{},
+		},
+		{
+			input:  []any{true, false, "true", "false", nil, nil},
+			output: []any{true, false, true, false},
+		},
+		{
+			input:  []any{},
+			output: []any{},
+		},
 	}
 }
 
 func arrayOfIntegerTypeTests(rnd randomTestValues) []inputOutput {
 	return []inputOutput{
-		{input: []any{0, 1, 1.0, 1.1, 1.9}, output: []any{0, 1, 1, 1, 1}},
-		{input: []any{0, -1, -1.0, -1.1, -1.9}, output: []any{0, -1, -1, -1, -1}},
-		{input: []any{123456789, 0.123456789}, output: []any{123456789, 0}},
-		{input: []any{"0", "1", "2.0", "-1", "-2.0"}, output: []any{0, 1, 2, -1, -2}},
-		{input: []any{nil, nil, nil, nil}, output: []any{}},
-		{input: []any{0, 1, 1.0, "-1", "-1.0", nil, nil}, output: []any{0, 1, 1, -1, -1}},
-		{input: []any{}, output: []any{}},
-		{input: []any{rnd.int, rnd.int63, rnd.float63}, output: []any{rnd.int, rnd.int63, int64(rnd.float63)}},
+		{
+			input:  []any{0, 1, 1.0, 1.1, 1.9},
+			output: []any{0, 1, 1, 1, 1},
+		},
+		{
+			input:  []any{0, -1, -1.0, -1.1, -1.9},
+			output: []any{0, -1, -1, -1, -1},
+		},
+		{
+			input:  []any{123456789, 0.123456789},
+			output: []any{123456789, 0},
+		},
+		{
+			input:  []any{"0", "1", "2.0", "-1", "-2.0"},
+			output: []any{0, 1, 2, -1, -2},
+		},
+		{
+			input:  []any{nil, nil, nil, nil},
+			output: []any{},
+		},
+		{
+			input:  []any{0, 1, 1.0, "-1", "-1.0", nil, nil},
+			output: []any{0, 1, 1, -1, -1},
+		},
+		{
+			input:  []any{},
+			output: []any{},
+		},
+		{
+			input:  []any{rnd.int, rnd.int63, rnd.float63},
+			output: []any{rnd.int, rnd.int63, int64(rnd.float63)},
+		},
 	}
 }
 
 func arrayOfStringTypeTests(rnd randomTestValues) []inputOutput {
 	return []inputOutput{
-		{input: []any{"test_string", "3", "3.0", "", "true", "false"}, output: []any{"test_string", "3", "3.0", "", "true", "false"}},
-		{input: []any{true, true, false, false}, output: []any{"true", "true", "false", "false"}},
-		{input: []any{0, 1, 1.0, 1.1, -1.1, 123456789}, output: []any{"0", "1", "1", "1.1", "-1.1", "123456789"}},
-		{input: []any{nil, nil, nil, nil}, output: []any{}},
-		{input: []any{"test_string", "3", "3.0", "", "true", "false", 3, 3.0, nil, true, false, nil}, output: []any{"test_string", "3", "3.0", "", "true", "false", "3", "3", "true", "false"}},
-		{input: []any{}, output: []any{}},
-		{input: []any{rnd.string, rnd.int, rnd.int63, rnd.float63}, output: []any{rnd.string, fmt.Sprintf("%d", rnd.int), fmt.Sprintf("%d", rnd.int63), fmt.Sprintf("%v", rnd.float63)}},
+		{
+			input:  []any{"test_string", "3", "3.0", "", "true", "false"},
+			output: []any{"test_string", "3", "3.0", "", "true", "false"},
+		},
+		{
+			input:  []any{true, true, false, false},
+			output: []any{"true", "true", "false", "false"},
+		},
+		{
+			input:  []any{0, 1, 1.0, 1.1, -1.1, 123456789},
+			output: []any{"0", "1", "1", "1.1", "-1.1", "123456789"},
+		},
+		{
+			input:  []any{nil, nil, nil, nil},
+			output: []any{},
+		},
+		{
+			input:  []any{"test_string", "3", "3.0", "", "true", "false", 3, 3.0, nil, true, false, nil},
+			output: []any{"test_string", "3", "3.0", "", "true", "false", "3", "3", "true", "false"},
+		},
+		{
+			input:  []any{},
+			output: []any{},
+		},
+		{
+			input:  []any{rnd.string, rnd.int, rnd.int63, rnd.float63},
+			output: []any{rnd.string, strconv.Itoa(rnd.int), strconv.FormatInt(rnd.int63, 10), fmt.Sprintf("%v", rnd.float63)},
+		},
 	}
 }
 
 func arrayOfFloatTypeTests(rnd randomTestValues) []inputOutput {
 	return []inputOutput{
-		{input: []any{0, 1, 1.0, 1.1, 1.9}, output: []any{0.0, 1.0, 1.0, 1.1, 1.9}},
-		{input: []any{0, -1, -1.0, -1.1, -1.9}, output: []any{0.0, -1.0, -1.0, -1.1, -1.9}},
-		{input: []any{123456789, 0.123456789}, output: []any{123456789.0, 0.123456789}},
-		{input: []any{"0", "1", "2.0", "-1", "-2.0"}, output: []any{0.0, 1.0, 2.0, -1.0, -2.0}},
-		{input: []any{nil, nil, nil, nil}, output: []any{}},
-		{input: []any{0, 1, 1.0, "-1", "-1.0", nil, nil}, output: []any{0.0, 1.0, 1.0, -1.0, -1.0}},
-		{input: []any{}, output: []any{}},
-		{input: []any{rnd.int, rnd.int63, rnd.float63}, output: []any{float64(rnd.int), float64(rnd.int63), rnd.float63}},
+		{
+			input:  []any{0, 1, 1.0, 1.1, 1.9},
+			output: []any{0.0, 1.0, 1.0, 1.1, 1.9},
+		},
+		{
+			input:  []any{0, -1, -1.0, -1.1, -1.9},
+			output: []any{0.0, -1.0, -1.0, -1.1, -1.9},
+		},
+		{
+			input:  []any{123456789, 0.123456789},
+			output: []any{123456789.0, 0.123456789},
+		},
+		{
+			input:  []any{"0", "1", "2.0", "-1", "-2.0"},
+			output: []any{0.0, 1.0, 2.0, -1.0, -2.0},
+		},
+		{
+			input:  []any{nil, nil, nil, nil},
+			output: []any{},
+		},
+		{
+			input:  []any{0, 1, 1.0, "-1", "-1.0", nil, nil},
+			output: []any{0.0, 1.0, 1.0, -1.0, -1.0},
+		},
+		{
+			input:  []any{},
+			output: []any{},
+		},
+		{
+			input:  []any{rnd.int, rnd.int63, rnd.float63},
+			output: []any{float64(rnd.int), float64(rnd.int63), rnd.float63},
+		},
 	}
 }
 
 func arrayOfFloatEnumTests() []inputOutput {
 	return []inputOutput{
-		{input: []any{0.0, 1.0, -1.0, -1.1, 1.1, 0.0, 1.0, -1.0, -1.1, 1.1}, output: []any{0.0, 1.0, -1.0, -1.1, 1.1, 0.0, 1.0, -1.0, -1.1, 1.1}},
-		{input: []any{"0.0", "1.0", "-1.0", "-1.1", "1.1"}, output: []any{0.0, 1.0, -1.0, -1.1, 1.1}},
-		{input: []any{0, 1, -1}, output: []any{0.0, 1.0, -1.0}},
-		{input: []any{nil, nil, nil, nil}, output: []any{}},
-		{input: []any{0, 1, 1.1, "-1", "-1.1", nil, nil}, output: []any{0.0, 1.0, 1.1, -1.0, -1.1}},
-		{input: []any{}, output: []any{}},
+		{
+			input:  []any{0.0, 1.0, -1.0, -1.1, 1.1, 0.0, 1.0, -1.0, -1.1, 1.1},
+			output: []any{0.0, 1.0, -1.0, -1.1, 1.1, 0.0, 1.0, -1.0, -1.1, 1.1},
+		},
+		{
+			input:  []any{"0.0", "1.0", "-1.0", "-1.1", "1.1"},
+			output: []any{0.0, 1.0, -1.0, -1.1, 1.1},
+		},
+		{
+			input:  []any{0, 1, -1},
+			output: []any{0.0, 1.0, -1.0},
+		},
+		{
+			input:  []any{nil, nil, nil, nil},
+			output: []any{},
+		},
+		{
+			input:  []any{0, 1, 1.1, "-1", "-1.1", nil, nil},
+			output: []any{0.0, 1.0, 1.1, -1.0, -1.1},
+		},
+		{
+			input:  []any{},
+			output: []any{},
+		},
 	}
 }
 
 func objectTests(rnd randomTestValues) []inputOutput {
 	return []inputOutput{
-		{input: map[string]any{"boolean": true, "integer": 0, "string": "test_string", "float": 0.0}, output: map[string]any{"boolean": true, "integer": 0, "string": "test_string", "float": 0.0}},
-		{input: map[string]any{"boolean": false, "integer": 1, "string": "3", "float": 1.0}, output: map[string]any{"boolean": false, "integer": 1, "string": "3", "float": 1.0}},
-		{input: map[string]any{"boolean": true, "integer": 1.0, "string": "3.0", "float": 1.1}, output: map[string]any{"boolean": true, "integer": 1, "string": "3.0", "float": 1.1}},
-		{input: map[string]any{"boolean": true, "integer": rnd.int, "string": rnd.string, "float": rnd.float63}, output: map[string]any{"boolean": true, "integer": rnd.int, "string": rnd.string, "float": rnd.float63}},
+		{
+			input:  map[string]any{"boolean": true, "integer": 0, "string": "test_string", "float": 0.0},
+			output: map[string]any{"boolean": true, "integer": 0, "string": "test_string", "float": 0.0},
+		},
+		{
+			input:  map[string]any{"boolean": false, "integer": 1, "string": "3", "float": 1.0},
+			output: map[string]any{"boolean": false, "integer": 1, "string": "3", "float": 1.0},
+		},
+		{
+			input:  map[string]any{"boolean": true, "integer": 1.0, "string": "3.0", "float": 1.1},
+			output: map[string]any{"boolean": true, "integer": 1, "string": "3.0", "float": 1.1},
+		},
+		{
+			input:  map[string]any{"boolean": true, "integer": rnd.int, "string": rnd.string, "float": rnd.float63},
+			output: map[string]any{"boolean": true, "integer": rnd.int, "string": rnd.string, "float": rnd.float63},
+		},
+	}
+}
+
+func dateTypeTests() []inputOutput {
+	return []inputOutput{
+		{input: "2021-01-01", output: "2021-01-01"},
+	}
+}
+
+func timestampTypeTests() []inputOutput {
+	return []inputOutput{
+		{input: "00:00:00", output: "00:00:00"},
+		{input: "00:00:00.000", output: "00:00:00"},
+	}
+}
+
+func dateTimeTypeTests() []inputOutput {
+	return []inputOutput{
+		{input: "2021-01-01T00:00:00Z", output: "2021-01-01 00:00:00"},
+		{input: "2021-01-01T00:00:00.000Z", output: "2021-01-01 00:00:00"},
 	}
 }
 
@@ -264,68 +401,75 @@ func validateTests() map[string][]inputOutput {
 		ArrayOf(FloatType()).String():   arrayOfFloatTypeTests(rnd),
 		ArrayOf(floatEnum).String():     arrayOfFloatEnumTests(),
 		objectType.String():             objectTests(rnd),
+		DateType().String():             dateTypeTests(),
+		TimestampType().String():        timestampTypeTests(),
+		DateTimeType().String():         dateTimeTypeTests(),
 	}
 }
 
-var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
 func randomString() string {
-	s := make([]rune, rand.Intn(100))
+	const maxStringLength = 100
+
+	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+	s := make([]rune, rand.Intn(maxStringLength))
 	for i := range s {
 		s[i] = letters[rand.Intn(len(letters))]
 	}
+
 	return string(s)
 }
 
 func randomBoolean() bool {
-	return rand.Intn(2) == 0
+	const maxBoolean = 2
+
+	return rand.Intn(maxBoolean) == 0
 }
 
-func compareValues(v1, v2 any) bool {
-	if v1 == nil && v2 == nil {
+func compareValues(value1, value2 any) bool {
+	if value1 == nil && value2 == nil {
 		return true
 	}
-	if v1 == nil || v2 == nil {
+
+	if value1 == nil || value2 == nil {
 		return false
 	}
 
-	v1 = transformVal(v1)
-	v2 = transformVal(v2)
+	value1 = transformVal(value1)
+	value2 = transformVal(value2)
 
-	val1 := reflect.ValueOf(v1)
-	val2 := reflect.ValueOf(v2)
+	val1 := reflect.ValueOf(value1)
+	val2 := reflect.ValueOf(value2)
 
-	if val1.Kind() == reflect.Slice || val2.Kind() == reflect.Slice {
-		if val1.Kind() != val2.Kind() {
-			return false
-		}
+	if val1.Kind() != val2.Kind() {
+		return false
+	}
+
+	switch val1.Kind() {
+	case reflect.Slice:
 		return compareSlices(val1, val2)
-	}
-
-	if val1.Kind() == reflect.Map || val2.Kind() == reflect.Map {
-		if val1.Kind() != val2.Kind() {
-			return false
-		}
+	case reflect.Map:
 		return compareMaps(val1, val2)
+	default:
+		return value1 == value2
 	}
-
-	return v1 == v2
 }
 
-func transformVal(v any) any {
-	switch v := v.(type) {
+func transformVal(val any) any {
+	switch val := val.(type) {
 	case int:
-		return int64(v)
+		return int64(val)
 	case int8:
-		return int64(v)
+		return int64(val)
 	case int16:
-		return int64(v)
+		return int64(val)
 	case int32:
-		return int64(v)
+		return int64(val)
 	case float32:
-		return float64(v)
+		return float64(val)
+	default:
+		return val
 	}
-	return v
 }
 
 func compareSlices(slice1, slice2 reflect.Value) bool {
@@ -333,7 +477,7 @@ func compareSlices(slice1, slice2 reflect.Value) bool {
 		return false
 	}
 
-	for i := 0; i < slice1.Len(); i++ {
+	for i := range slice1.Len() {
 		if !compareValues(slice1.Index(i).Interface(), slice2.Index(i).Interface()) {
 			return false
 		}

@@ -1,146 +1,204 @@
 package rules
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
+// Field is a string representation of a field name.
 type Field string
 
 func (f Field) String() string {
 	return string(f)
 }
 
+// BaseType is an enum of the base types supported by the normalizer.
 type BaseType int
 
+// Supported enum values for the BaseType.
 const (
 	Boolean BaseType = iota
 	Integer
 	String
 	Float
+	Date
+	Timestamp
+	DateTime
 	Object
 )
 
-var baseTypeNames = map[BaseType]string{
-	Boolean: "boolean",
-	Integer: "integer",
-	String:  "string",
-	Float:   "float",
-	Object:  "object",
-}
-
 func (bt BaseType) String() string {
-	return baseTypeNames[bt]
+	switch bt {
+	case Boolean:
+		return "boolean"
+	case Integer:
+		return "integer"
+	case String:
+		return "string"
+	case Float:
+		return "float"
+	case Date:
+		return "date"
+	case Timestamp:
+		return "timestamp"
+	case DateTime:
+		return "dateTime"
+	case Object:
+		return "object"
+	}
+
+	return ""
 }
 
+type enum struct {
+	values []any
+}
+
+type object struct {
+	fields map[Field]FieldType
+}
+
+// FieldType represents a field type with its base type and additional properties.
 type FieldType struct {
-	baseType     BaseType
-	isArray      bool
-	enumValues   []any
-	objectFields map[Field]FieldType
+	baseType BaseType
+	isArray  bool
+	enum     *enum
+	object   *object
 }
 
+// BaseType returns the base type for the given fieldType.
 func (ft FieldType) BaseType() BaseType {
 	return ft.baseType
 }
 
+// IsArray return true if the given fieldType is an array and false otherwise.
 func (ft FieldType) IsArray() bool {
 	return ft.isArray
 }
 
+// SetIsArray sets the given isArray to the given fieldType.
 func (ft *FieldType) SetIsArray(isArray bool) {
 	ft.isArray = isArray
 }
 
+// EnumValues returns the enum values for the given fieldType.
 func (ft FieldType) EnumValues() []any {
-	return ft.enumValues
+	if ft.enum == nil {
+		return nil
+	}
+
+	return ft.enum.values
 }
 
+// SetEnumValues validates the given enum values and sets them to the given fieldType.
 func (ft *FieldType) SetEnumValues(enumValues ...any) error {
-	if ft.baseType == Object {
-		return fmt.Errorf("enums of objects are not supported")
-	}
-	if err := validateEnumValues(ft.baseType, enumValues); err != nil {
+	if err := validateEnumValues(ft.baseType, enumValues...); err != nil {
 		return err
 	}
-	ft.enumValues = enumValues
+
+	ft.enum = &enum{values: enumValues}
+
 	return nil
 }
 
+// AddEnumValue adds the given enum value to the given fieldType.
+// It returns an error if the enum values are not set.
 func (ft *FieldType) AddEnumValue(enumValue any) error {
-	if ft.enumValues == nil {
-		return fmt.Errorf("enum values are not set")
+	if ft.enum == nil {
+		return errors.New("enum values are not set")
 	}
-	ft.enumValues = append(ft.enumValues, enumValue)
+
+	if err := validateEnumValues(ft.baseType, enumValue); err != nil {
+		return err
+	}
+
+	ft.enum.values = append(ft.enum.values, enumValue)
+
 	return nil
 }
 
+// ObjectFields returns the object fields for the given fieldType.
 func (ft FieldType) ObjectFields() map[Field]FieldType {
-	return ft.objectFields
+	return ft.object.fields
 }
 
 func (ft FieldType) String() string {
 	str := ft.baseType.String()
-	if ft.enumValues != nil {
+	if ft.enum != nil {
 		str = fmt.Sprintf("enum<%s>", str)
 	}
+
 	if ft.isArray {
 		str = fmt.Sprintf("array<%s>", str)
 	}
+
 	return str
 }
 
+// Field returns the field name for the given fieldType.
 func (ft FieldType) Field() Field {
 	return Field(ft.String())
 }
 
+// BooleanType returns a new FieldType with the boolean base type set.
 func BooleanType() FieldType {
 	return FieldType{baseType: Boolean}
 }
 
+// IntegerType returns a new FieldType with the integer base type set.
 func IntegerType() FieldType {
 	return FieldType{baseType: Integer}
 }
 
+// StringType returns a new FieldType with the string base type set.
 func StringType() FieldType {
 	return FieldType{baseType: String}
 }
 
+// FloatType returns a new FieldType with the float base type set.
 func FloatType() FieldType {
 	return FieldType{baseType: Float}
 }
 
+// DateType returns a new FieldType with the date base type set.
+func DateType() FieldType {
+	return FieldType{baseType: Date}
+}
+
+// TimestampType returns a new FieldType with the timestamp base type set.
+func TimestampType() FieldType {
+	return FieldType{baseType: Timestamp}
+}
+
+// DateTimeType returns a new FieldType with the dateTime base type set.
+func DateTimeType() FieldType {
+	return FieldType{baseType: DateTime}
+}
+
+// ObjectType validates the given object fields and returns a new FieldType with the object fields set.
 func ObjectType(objectFields map[Field]FieldType) (FieldType, error) {
-	if objectFields == nil {
-		return FieldType{}, fmt.Errorf("object fields cannot be nil")
-	}
-
-	if len(objectFields) == 0 {
-		return FieldType{}, fmt.Errorf("object fields cannot be empty")
-	}
-
-	for field, fieldType := range objectFields {
-		if fieldType.baseType == Object {
-			return FieldType{}, fmt.Errorf("object field '%s' cannot be of type object (nested objects are not supported)", field)
-		}
+	if err := validateObjectFields(objectFields); err != nil {
+		return FieldType{}, fmt.Errorf("invalid object fields: %s, error: %w", objectFields, err)
 	}
 
 	return FieldType{
-		baseType:     Object,
-		objectFields: objectFields,
+		baseType: Object,
+		object:   &object{fields: objectFields},
 	}, nil
 }
 
-func ArrayOf(fieldType FieldType) FieldType {
-	fieldType.SetIsArray(true)
-	return fieldType
+// EnumOf sets the given enum values to the given fieldType.
+func EnumOf(fieldType FieldType, enumValues ...any) (FieldType, error) {
+	if err := fieldType.SetEnumValues(enumValues...); err != nil {
+		return FieldType{}, err
+	}
+
+	return fieldType, nil
 }
 
-func EnumOf(fieldType FieldType, enumValues ...any) (FieldType, error) {
-	if enumValues == nil {
-		return FieldType{}, fmt.Errorf("enum values cannot be nil")
-	}
+// ArrayOf updates the given fieldType to be an array.
+func ArrayOf(fieldType FieldType) FieldType {
+	fieldType.SetIsArray(true)
 
-	if len(enumValues) == 0 {
-		return FieldType{}, fmt.Errorf("enum values cannot be empty")
-	}
-
-	return fieldType, fieldType.SetEnumValues(enumValues...)
+	return fieldType
 }

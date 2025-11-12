@@ -1,10 +1,10 @@
-package jqNormalizer
+package jqnormalizer
 
 import (
+	"errors"
 	"fmt"
 
 	"diploma/rules"
-
 	"github.com/itchyny/gojq"
 )
 
@@ -12,19 +12,22 @@ var _ rules.AbstractNormalizer = (*normalizer)(nil)
 
 type normalizer struct {
 	*rules.BaseNormalizer
+
 	cachedCode *gojq.Code
 }
 
+// NewNormalizer creates a new JQ normalizer with the given options and caches the compiled JQ code.
 func NewNormalizer(options ...rules.NormalizerOption) (*normalizer, error) {
 	base, err := rules.NewBaseNormalizer(options...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create base normalizer: %w", err)
 	}
 
 	n := &normalizer{
 		BaseNormalizer: base,
 	}
 	n.CacheCompiledJqCode()
+
 	return n, nil
 }
 
@@ -37,6 +40,7 @@ func (n *normalizer) RemoveField(field rules.Field) {
 	if _, ok := n.Fields[field]; !ok {
 		return
 	}
+
 	n.BaseNormalizer.RemoveField(field)
 	n.CacheCompiledJqCode()
 }
@@ -51,28 +55,21 @@ func (n *normalizer) CacheCompiledJqCode() {
 
 func (n *normalizer) Normalize(data map[string]any) (map[string]any, error) {
 	if n.cachedCode == nil {
-		return nil, fmt.Errorf("jq query compilation not cached")
+		return nil, errors.New("jq query compilation not cached")
 	}
 
 	iter := n.cachedCode.Run(data)
+
 	result, ok := iter.Next()
 	if !ok {
-		return nil, nil
+		return nil, errors.New("no result from JQ query")
 	}
 
 	switch result := result.(type) {
 	case error:
 		return nil, result
 	case map[string]any:
-		// Remove fields that weren't in original data
-		for key := range result {
-			if _, ok := data[key]; !ok {
-				delete(result, key)
-			}
-		}
 		return result, nil
-	case nil:
-		return nil, nil
 	default:
 		return nil, fmt.Errorf("unexpected result type: %T", result)
 	}
