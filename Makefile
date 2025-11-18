@@ -25,7 +25,7 @@ lint: install-lint
 
 install-lint:
 	@echo "Installing latest golangci-lint..."
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $$(go env GOPATH)/bin latest
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin latest
 
 run: build
 	@echo "Running diploma.exe..."
