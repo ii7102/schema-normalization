@@ -53,7 +53,7 @@ func jqFilter(fields map[rules.Field]rules.FieldType) string {
 	return fmt.Sprintf("{%s\n}", strings.Join(jqRulesArray, ","))
 }
 
-func compileJqCode(jqFilter string) (compiledCode *gojq.Code) {
+func compileJqCode(jqFilter string) *gojq.Code {
 	jqQuery, err := gojq.Parse(jqFilter)
 	if err != nil {
 		parseErr := &gojq.ParseError{}
@@ -63,15 +63,15 @@ func compileJqCode(jqFilter string) (compiledCode *gojq.Code) {
 			log.Printf("failed to parse JQ query: %v", err)
 		}
 
-		return
+		return nil
 	}
 
-	compiledCode, err = gojq.Compile(jqQuery)
+	compiledCode, err := gojq.Compile(jqQuery)
 	if err != nil {
-		log.Println("failed to compile JQ query: ", err)
+		log.Printf("failed to compile JQ query: %v", err)
 
 		return nil
 	}
 
-	return
+	return compiledCode
 }

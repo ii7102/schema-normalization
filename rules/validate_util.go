@@ -9,6 +9,9 @@ import (
 
 const (
 	nonExistingTestField = "nonExistingTestField"
+
+	maxStringLength = 100
+	maxBoolean      = 2
 )
 
 func stringEnumValues() []any {
@@ -31,7 +34,6 @@ func objectFields() map[Field]FieldType {
 func testNormalizerOptions() []NormalizerOption {
 	stringEnum, _ := EnumOf(StringType(), stringEnumValues()...)
 	floatEnum, _ := EnumOf(FloatType(), floatEnumValues()...)
-
 	objectType, _ := ObjectType(objectFields())
 
 	return []NormalizerOption{
@@ -385,7 +387,6 @@ func validateTests() map[string][]inputOutput {
 	rnd := generateRandomTestValues()
 	enumString, _ := EnumOf(StringType(), stringEnumValues()...)
 	floatEnum, _ := EnumOf(FloatType(), floatEnumValues()...)
-
 	objectType, _ := ObjectType(objectFields())
 
 	return map[string][]inputOutput{
@@ -408,8 +409,6 @@ func validateTests() map[string][]inputOutput {
 }
 
 func randomString() string {
-	const maxStringLength = 100
-
 	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 	s := make([]rune, rand.Intn(maxStringLength))
@@ -421,8 +420,6 @@ func randomString() string {
 }
 
 func randomBoolean() bool {
-	const maxBoolean = 2
-
 	return rand.Intn(maxBoolean) == 0
 }
 

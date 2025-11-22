@@ -1,27 +1,23 @@
 package rules
 
-import (
-	"errors"
-	"fmt"
-)
-
 func validateEnumValues(baseType BaseType, enumValues ...any) error {
 	switch baseType {
 	case Date, Timestamp, DateTime, Object:
-		return fmt.Errorf("enums of %s are not supported", baseType)
+		return WrappedError(errEnumsOfBaseTypeAreNotSupported, "enums of %s are not supported", baseType)
+	default:
 	}
 
 	if len(enumValues) == 0 {
-		return errors.New("enum values cannot be nil or empty")
+		return errEnumValuesCannotBeNilOrEmpty
 	}
 
 	for _, enumValue := range enumValues {
 		if enumValue == nil {
-			return errors.New("enum value cannot be nil")
+			return errEnumValueCannotBeNil
 		}
 
 		if !matchesBaseType(baseType, enumValue) {
-			return fmt.Errorf("enum value %v is not of %s type", enumValue, baseType)
+			return WrappedError(errEnumValueDoesNotMatchBaseType, "enum value %v is not of %s type", enumValue, baseType)
 		}
 	}
 
@@ -59,16 +55,16 @@ func matchesBaseType(baseType BaseType, value any) bool {
 
 func validateObjectFields(objectFields map[Field]FieldType) error {
 	if objectFields == nil {
-		return errors.New("object fields cannot be nil")
+		return errObjectFieldsCannotBeNil
 	}
 
 	if len(objectFields) == 0 {
-		return errors.New("object fields cannot be empty")
+		return errObjectFieldsCannotBeEmpty
 	}
 
 	for field, fieldType := range objectFields {
 		if fieldType.baseType == Object {
-			return fmt.Errorf("object field '%s' cannot be of type object (nested objects are not supported)", field)
+			return WrappedError(errNestedObjectsAreNotSupported, "object field '%s' cannot be of type object ", field)
 		}
 	}
 

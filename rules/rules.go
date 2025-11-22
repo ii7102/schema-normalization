@@ -1,7 +1,6 @@
 package rules
 
 import (
-	"errors"
 	"fmt"
 )
 
@@ -45,9 +44,9 @@ func (bt BaseType) String() string {
 		return "dateTime"
 	case Object:
 		return "object"
+	default:
+		return ""
 	}
-
-	return ""
 }
 
 type enum struct {
@@ -105,7 +104,7 @@ func (ft *FieldType) SetEnumValues(enumValues ...any) error {
 // It returns an error if the enum values are not set.
 func (ft *FieldType) AddEnumValue(enumValue any) error {
 	if ft.enum == nil {
-		return errors.New("enum values are not set")
+		return errEnumValuesNotSet
 	}
 
 	if err := validateEnumValues(ft.baseType, enumValue); err != nil {
@@ -119,6 +118,10 @@ func (ft *FieldType) AddEnumValue(enumValue any) error {
 
 // ObjectFields returns the object fields for the given fieldType.
 func (ft FieldType) ObjectFields() map[Field]FieldType {
+	if ft.object == nil {
+		return nil
+	}
+
 	return ft.object.fields
 }
 

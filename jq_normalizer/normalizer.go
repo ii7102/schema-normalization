@@ -1,7 +1,6 @@
 package jqnormalizer
 
 import (
-	"errors"
 	"fmt"
 
 	"diploma/rules"
@@ -25,8 +24,8 @@ func NewNormalizer(options ...rules.NormalizerOption) (*normalizer, error) {
 
 	n := &normalizer{
 		BaseNormalizer: base,
+		cachedCode:     compileJqCode(jqFilter(base.Fields)),
 	}
-	n.CacheCompiledJqCode()
 
 	return n, nil
 }
@@ -55,14 +54,14 @@ func (n *normalizer) CacheCompiledJqCode() {
 
 func (n *normalizer) Normalize(data map[string]any) (map[string]any, error) {
 	if n.cachedCode == nil {
-		return nil, errors.New("jq query compilation not cached")
+		return nil, errJqQueryCompilationNotCached
 	}
 
 	iter := n.cachedCode.Run(data)
 
 	result, ok := iter.Next()
 	if !ok {
-		return nil, errors.New("no result from JQ query")
+		return nil, errNoResultFromJqQuery
 	}
 
 	switch result := result.(type) {
@@ -71,6 +70,6 @@ func (n *normalizer) Normalize(data map[string]any) (map[string]any, error) {
 	case map[string]any:
 		return result, nil
 	default:
-		return nil, fmt.Errorf("unexpected result type: %T", result)
+		return nil, rules.WrappedError(errUnexpectedResultType, "unexpected result type: %T", result)
 	}
 }

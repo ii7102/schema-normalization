@@ -1,6 +1,6 @@
 module diploma
 
-go 1.25.3
+go 1.25.4
 
 require (
 	github.com/itchyny/gojq v0.12.17

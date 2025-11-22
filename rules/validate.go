@@ -38,11 +38,11 @@ func validateNormalizerTests(normalizer AbstractNormalizer) error {
 
 func validateOutput(field string, output map[string]any, expectedOutput any) error {
 	if _, ok := output[field]; !ok && field != nonExistingTestField {
-		return fmt.Errorf("expected %v output, got nothing", expectedOutput)
+		return WrappedError(errExpectedOutputMissmatch, "expected %v output, got nothing", expectedOutput)
 	}
 
 	if !compareValues(output[field], expectedOutput) {
-		return fmt.Errorf("expected %v output, got %v output", expectedOutput, output[field])
+		return WrappedError(errExpectedOutputMissmatch, "expected %v output, got %v output", expectedOutput, output)
 	}
 
 	return nil

@@ -48,12 +48,14 @@ func main() {
 		log.Fatalf("failed to read input file: %v", err)
 	}
 
-	var data map[string]any
+	var (
+		data       map[string]any
+		normalizer rules.AbstractNormalizer
+	)
+
 	if err := json.Unmarshal(input, &data); err != nil {
 		log.Fatalf("failed to unmarshal input file: %v", err)
 	}
-
-	var normalizer rules.AbstractNormalizer
 
 	switch *normalizerType {
 	case "go":
@@ -84,6 +86,7 @@ type MemStats struct {
 
 func getMemStats() MemStats {
 	var memStats runtime.MemStats
+
 	runtime.ReadMemStats(&memStats)
 
 	return MemStats{
@@ -143,10 +146,8 @@ func normalize(normalizer rules.AbstractNormalizer, data map[string]any, concurr
 }
 
 func normalizeSequentially(normalizer rules.AbstractNormalizer, dataArray []map[string]any) {
-	var err error
-
 	for _, data := range dataArray {
-		if _, err = normalizer.Normalize(data); err != nil {
+		if _, err := normalizer.Normalize(data); err != nil {
 			log.Printf("Failed to normalize the data, err: %v\n", err)
 		}
 	}
