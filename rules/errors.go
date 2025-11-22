@@ -16,7 +16,7 @@ var (
 	errObjectFieldsCannotBeEmpty    = errors.New("object fields cannot be empty")
 	errNestedObjectsAreNotSupported = errors.New("nested objects are not supported")
 
-	errExpectedOutputMissmatch = errors.New("expected output does not match actual output")
+	errExpectedOutputMismatch = errors.New("expected output does not match actual output")
 )
 
 // WrappedError wraps the given error with the given message and arguments.

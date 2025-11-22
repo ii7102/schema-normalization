@@ -136,7 +136,7 @@ func normalizeBoolean(value any) (any, error) {
 		return nil, rules.WrappedError(errInvalidBooleanValue, "string value: %s cannot be parsed to boolean", value)
 	}
 
-	return nil, rules.WrappedError(errInvalidBooleanValue, " value: %v", value)
+	return nil, rules.WrappedError(errInvalidBooleanValue, "value: %v", value)
 }
 
 func normalizeInteger(value any) (any, error) {
@@ -172,7 +172,9 @@ func normalizeFloat(value any) (any, error) {
 		return float64(value), nil
 	case int64:
 		return float64(value), nil
-	case float32, float64:
+	case float32:
+		return float64(value), nil
+	case float64:
 		return value, nil
 	case string:
 		if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
