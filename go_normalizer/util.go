@@ -34,7 +34,7 @@ func layoutFormats(bt rules.BaseType) []string {
 
 func timestampFormats() []string {
 	return []string{
-		time.Kitchen, time.Stamp, time.StampMilli, time.StampMicro, time.StampNano, time.TimeOnly,
+		time.TimeOnly, time.Kitchen, time.Stamp, time.StampMilli, time.StampMicro, time.StampNano,
 	}
 }
 
@@ -46,7 +46,7 @@ func dateFormats() []string {
 
 func dateTimeFormats() []string {
 	return []string{
-		time.ANSIC, time.UnixDate, time.RubyDate, time.RFC822, time.RFC822Z, time.RFC850,
-		time.RFC1123, time.RFC1123Z, time.RFC3339, time.RFC3339Nano, time.DateTime,
+		time.RFC3339, time.DateTime, time.RFC3339Nano, time.RFC1123, time.RFC1123Z,
+		time.RFC850, time.RFC822, time.RFC822Z, time.ANSIC, time.UnixDate, time.RubyDate,
 	}
 }

@@ -1,8 +1,6 @@
 package jqnormalizer
 
 import (
-	"fmt"
-
 	"diploma/rules"
 	"github.com/itchyny/gojq"
 )
@@ -19,7 +17,7 @@ type normalizer struct {
 func NewNormalizer(options ...rules.NormalizerOption) (*normalizer, error) {
 	base, err := rules.NewBaseNormalizer(options...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create base normalizer: %w", err)
+		return nil, rules.WrappedError(err, "failed to create base normalizer")
 	}
 
 	n := &normalizer{

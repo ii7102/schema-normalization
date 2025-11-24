@@ -39,10 +39,9 @@ func jqRules() map[string]string {
 }
 
 func jqFilter(fields map[rules.Field]rules.FieldType) string {
-	var jqRulesArray []string
-
 	jqRules := jqRules()
 
+	jqRulesArray := make([]string, 0, len(fields))
 	for field, fieldType := range fields {
 		jqRule, ok := jqRules[fieldType.String()]
 		if ok {

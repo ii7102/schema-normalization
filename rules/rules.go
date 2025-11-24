@@ -181,7 +181,7 @@ func DateTimeType() FieldType {
 // ObjectType validates the given object fields and returns a new FieldType with the object fields set.
 func ObjectType(objectFields map[Field]FieldType) (FieldType, error) {
 	if err := validateObjectFields(objectFields); err != nil {
-		return FieldType{}, fmt.Errorf("invalid object fields: %s, error: %w", objectFields, err)
+		return FieldType{}, WrappedError(err, "invalid object fields: %v", objectFields)
 	}
 
 	return FieldType{

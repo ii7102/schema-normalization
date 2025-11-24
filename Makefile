@@ -5,11 +5,12 @@ all: tidy fmt vet lint test build
 
 build:
 	@echo "Building diploma.exe..."
-	go build -o diploma.exe .
+	go build -race -o diploma.exe .
+	rm -f diploma.exe
 
 test:
 	@echo "Running tests..."
-	go test ./...
+	go test -race ./...
 
 fmt:
 	@echo "Formatting code..."

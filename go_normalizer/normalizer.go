@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"diploma/rules"
@@ -21,7 +22,7 @@ type normalizer struct {
 func NewNormalizer(options ...rules.NormalizerOption) (*normalizer, error) {
 	base, err := rules.NewBaseNormalizer(options...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create base normalizer: %w", err)
+		return nil, rules.WrappedError(err, "failed to create base normalizer")
 	}
 
 	return &normalizer{BaseNormalizer: base}, nil
@@ -46,12 +47,7 @@ func (n normalizer) Normalize(data map[string]any) (map[string]any, error) {
 	return normalizedData, nil
 }
 
-func normalize(value any, fieldType rules.FieldType) (any, error) {
-	var (
-		normalizedValue any
-		err             error
-	)
-
+func normalize(value any, fieldType rules.FieldType) (normalizedValue any, err error) {
 	if value == nil {
 		return value, nil
 	}
@@ -74,7 +70,7 @@ func normalize(value any, fieldType rules.FieldType) (any, error) {
 		return nil, rules.WrappedError(errInvalidEnumValue, "value is nil")
 	}
 
-	if err = validateEnums(normalizedValue, fieldType.EnumValues(), fieldType.IsArray()); err != nil {
+	if err = validateEnum(normalizedValue, fieldType.EnumValues(), fieldType.IsArray()); err != nil {
 		return nil, err
 	}
 
@@ -84,7 +80,7 @@ func normalize(value any, fieldType rules.FieldType) (any, error) {
 func normalizeArray(value any, fieldType rules.FieldType) (any, error) {
 	reflectVal := reflect.ValueOf(value)
 	if reflectVal.Kind() != reflect.Slice {
-		return nil, rules.WrappedError(errInvalidArrayValue, "value: %v", value)
+		return nil, rules.WrappedError(errInvalidArrayValue, "%v", value)
 	}
 
 	normalizedArray := make([]any, 0, reflectVal.Len())
@@ -112,7 +108,7 @@ func normalizeValue(value any, fieldType rules.FieldType) (any, error) {
 	case rules.Integer:
 		return normalizeInteger(value)
 	case rules.String:
-		return normalizeString(value)
+		return normalizeString(value), nil
 	case rules.Float:
 		return normalizeFloat(value)
 	case rules.Date, rules.Timestamp, rules.DateTime:
@@ -124,66 +120,88 @@ func normalizeValue(value any, fieldType rules.FieldType) (any, error) {
 	}
 }
 
-func normalizeBoolean(value any) (any, error) {
+func normalizeBoolean(value any) (bool, error) {
 	switch value := value.(type) {
 	case bool:
 		return value, nil
 	case string:
-		if boolValue, err := strconv.ParseBool(value); err == nil {
-			return boolValue, nil
+		boolValue, err := strconv.ParseBool(value)
+		if err != nil {
+			return false, rules.WrappedError(errInvalidBooleanValue, "string value: %s, error: %v", value, err)
 		}
 
-		return nil, rules.WrappedError(errInvalidBooleanValue, "string value: %s cannot be parsed to boolean", value)
-	}
-
-	return nil, rules.WrappedError(errInvalidBooleanValue, "value: %v", value)
-}
-
-func normalizeInteger(value any) (any, error) {
-	switch value := value.(type) {
-	case int, int8, int16, int32, int64:
-		return value, nil
-	case float32:
-		return int64(value), nil
-	case float64:
-		return int64(value), nil
-	case string:
-		if intValue, err := strconv.Atoi(value); err == nil {
-			return intValue, nil
-		}
-
-		if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
-			return int(math.Round(floatValue)), nil
-		}
-
-		return nil, rules.WrappedError(errInvalidIntegerValue, "string value: %s cannot be parsed to number", value)
-	}
-
-	return nil, rules.WrappedError(errInvalidIntegerValue, "value: %v, type: %T", value, value)
-}
-
-func normalizeString(value any) (any, error) {
-	return fmt.Sprintf("%v", value), nil
-}
-
-func normalizeFloat(value any) (any, error) {
-	switch value := value.(type) {
-	case int:
-		return float64(value), nil
-	case int64:
-		return float64(value), nil
-	case float32:
-		return float64(value), nil
-	case float64:
-		return value, nil
-	case string:
-		if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
-			return floatValue, nil
-		}
-
-		return nil, rules.WrappedError(errInvalidFloatValue, "string value: %s cannot be parsed to float", value)
+		return boolValue, nil
 	default:
-		return nil, rules.WrappedError(errInvalidFloatValue, "value: %v, type: %T", value, value)
+		return false, rules.WrappedError(errInvalidBooleanValue, "%v, type: %T", value, value)
+	}
+}
+
+func normalizeNumberFromString(value string) (float64, error) {
+	if strings.Contains(value, ".") {
+		floatValue, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return 0, fmt.Errorf("string value: %s, error: %w", value, err)
+		}
+
+		return floatValue, nil
+	}
+
+	intValue, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, fmt.Errorf("string value: %s, error: %w", value, err)
+	}
+
+	return float64(intValue), nil
+}
+
+func normalizeInteger(value any) (int64, error) {
+	reflectVal := reflect.ValueOf(value)
+	switch reflectVal.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return reflectVal.Int(), nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		uintValue := reflectVal.Uint()
+		if uintValue > math.MaxInt64 {
+			return 0, rules.WrappedError(errInvalidIntegerValue, "uint64 value: %d is greater than max int64 value", uintValue)
+		}
+
+		return int64(uintValue), nil
+	case reflect.Float32, reflect.Float64:
+		return int64(reflectVal.Float()), nil
+	case reflect.String:
+		value, err := normalizeNumberFromString(reflectVal.String())
+		if err != nil {
+			return 0, rules.WrappedError(errInvalidIntegerValue, "%s", err)
+		}
+
+		return int64(value), nil
+	default:
+		return 0, rules.WrappedError(errInvalidIntegerValue, "%v, type: %T", value, value)
+	}
+}
+
+func normalizeString(value any) string {
+	return fmt.Sprintf("%v", value)
+}
+
+func normalizeFloat(value any) (float64, error) {
+	reflectVal := reflect.ValueOf(value)
+	switch reflectVal.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return float64(reflectVal.Int()), nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return float64(reflectVal.Uint()), nil
+	case reflect.Float32, reflect.Float64:
+		return reflectVal.Float(), nil
+	case reflect.String:
+		value, err := normalizeNumberFromString(reflectVal.String())
+		if err != nil {
+			return 0, rules.WrappedError(errInvalidFloatValue, "%s", err)
+		}
+
+		return value, nil
+	default:
+		return 0, rules.WrappedError(errInvalidFloatValue, "%v, type: %T", value, value)
 	}
 }
 
@@ -207,12 +225,14 @@ func normalizeDateTime(value any, baseType rules.BaseType) (any, error) {
 func normalizeObject(value any, fieldType rules.FieldType) (any, error) {
 	valueMap, ok := value.(map[string]any)
 	if !ok {
-		return nil, rules.WrappedError(errInvalidObjectValue, "value: %v", value)
+		return nil, rules.WrappedError(errInvalidObjectValue, "%v", value)
 	}
 
-	normalizedObject := make(map[string]any, len(valueMap))
+	objectFields := fieldType.ObjectFields()
+
+	normalizedObject := make(map[string]any, len(objectFields))
 	for key, val := range valueMap {
-		objectField, ok := fieldType.ObjectFields()[rules.Field(key)]
+		objectField, ok := objectFields[rules.Field(key)]
 		if !ok {
 			continue
 		}
@@ -228,7 +248,7 @@ func normalizeObject(value any, fieldType rules.FieldType) (any, error) {
 	return normalizedObject, nil
 }
 
-func validateEnums(normalizedValue any, enumValues []any, isArray bool) error {
+func validateEnum(normalizedValue any, enumValues []any, isArray bool) error {
 	if !isArray {
 		if !slices.Contains(enumValues, normalizedValue) {
 			return rules.WrappedError(errInvalidEnumValue, "value: %v", normalizedValue)
@@ -244,7 +264,7 @@ func validateEnums(normalizedValue any, enumValues []any, isArray bool) error {
 	}
 
 	for _, value := range normalizedValueArray {
-		err := validateEnums(value, enumValues, false)
+		err := validateEnum(value, enumValues, false)
 		if err != nil {
 			return err
 		}

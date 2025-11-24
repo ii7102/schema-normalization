@@ -25,5 +25,5 @@ func WrappedError(err error, msg string, args ...any) error {
 		return nil
 	}
 
-	return fmt.Errorf("%w: %v", err, fmt.Sprintf(msg, args...))
+	return fmt.Errorf("%w: %s", err, fmt.Sprintf(msg, args...))
 }

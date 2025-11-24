@@ -7,6 +7,7 @@ linters:
     - recvcheck
     - noinlineerr
     - exhaustruct
+    - nonamedreturns
   settings:
     errcheck:
       check-type-assertions: true

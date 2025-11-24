@@ -161,7 +161,7 @@ func NewBaseNormalizer(options ...NormalizerOption) (*BaseNormalizer, error) {
 
 	for _, option := range options {
 		if err := option(normalizer); err != nil {
-			return nil, err
+			return nil, WrappedError(err, "failed to apply normalizer option")
 		}
 	}
 

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"log"
-	"maps"
 	"os"
 	"runtime"
 	"sync"
@@ -109,11 +108,6 @@ func printMemoryEfficiency(iterations int, memUsed, totalAllocated float64, dura
 }
 
 func normalize(normalizer rules.AbstractNormalizer, data map[string]any, concurrently bool, numOfIterations int) {
-	dataArray := make([]map[string]any, 0, numOfIterations)
-	for range numOfIterations {
-		dataArray = append(dataArray, maps.Clone(data))
-	}
-
 	runtime.GC()
 	runtime.GC() // Call twice to ensure clean state
 
@@ -122,9 +116,9 @@ func normalize(normalizer rules.AbstractNormalizer, data map[string]any, concurr
 	timeNow := time.Now()
 
 	if concurrently {
-		normalizeConcurrently(normalizer, dataArray)
+		normalizeConcurrently(normalizer, data, numOfIterations)
 	} else {
-		normalizeSequentially(normalizer, dataArray)
+		normalizeSequentially(normalizer, data, numOfIterations)
 	}
 
 	duration := time.Since(timeNow)
@@ -145,22 +139,23 @@ func normalize(normalizer rules.AbstractNormalizer, data map[string]any, concurr
 	log.Println("Time: ", duration.String())
 }
 
-func normalizeSequentially(normalizer rules.AbstractNormalizer, dataArray []map[string]any) {
-	for _, data := range dataArray {
+func normalizeSequentially(normalizer rules.AbstractNormalizer, data map[string]any, numOfIterations int) {
+	for range numOfIterations {
 		if _, err := normalizer.Normalize(data); err != nil {
 			log.Printf("Failed to normalize the data, err: %v\n", err)
 		}
 	}
 }
 
-func normalizeConcurrently(normalizer rules.AbstractNormalizer, dataArray []map[string]any) {
-	var waitGroup sync.WaitGroup
+func normalizeConcurrently(normalizer rules.AbstractNormalizer, data map[string]any, numOfIterations int) {
+	var (
+		errorsChan = make(chan error, numOfIterations)
+		waitGroup  sync.WaitGroup
+	)
 
-	errorsChan := make(chan error, len(dataArray))
+	waitGroup.Add(numOfIterations)
 
-	for _, data := range dataArray {
-		waitGroup.Add(1)
-
+	for range numOfIterations {
 		go func(dataElem map[string]any) {
 			defer waitGroup.Done()
 
