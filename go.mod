@@ -1,6 +1,6 @@
-module diploma
+module github.com/ii7102/diploma-schema-normalization
 
-go 1.25.4
+go 1.25.3
 
 require (
 	github.com/itchyny/gojq v0.12.17

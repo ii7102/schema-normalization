@@ -21,7 +21,7 @@ linters:
           list-mode: strict
           allow:
             - $gostd
-            - diploma
+            - github.com/ii7102/diploma-schema-normalization
             - github.com/itchyny/gojq$
             - github.com/stretchr/testify/assert$
     exhaustive:
@@ -29,7 +29,7 @@ linters:
       default-case-required: true
     wrapcheck:
       ignore-package-globs:
-        - diploma/rules
+        - github.com/ii7102/diploma-schema-normalization/rules
     copyloopvar:
       check-alias: true
     revive:

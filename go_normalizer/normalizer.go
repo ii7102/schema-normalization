@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"diploma/rules"
+	"github.com/ii7102/diploma-schema-normalization/rules"
 )
 
 var _ rules.AbstractNormalizer = (*normalizer)(nil)

@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	gonormalizer "diploma/go_normalizer"
-	jqnormalizer "diploma/jq_normalizer"
-	"diploma/rules"
+	gonormalizer "github.com/ii7102/diploma-schema-normalization/go_normalizer"
+	jqnormalizer "github.com/ii7102/diploma-schema-normalization/jq_normalizer"
+	"github.com/ii7102/diploma-schema-normalization/rules"
 )
 
 func normalizerOptions() []rules.NormalizerOption {

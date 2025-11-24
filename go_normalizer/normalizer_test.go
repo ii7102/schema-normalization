@@ -3,8 +3,8 @@ package gonormalizer_test
 import (
 	"testing"
 
-	gonormalizer "diploma/go_normalizer"
-	"diploma/rules"
+	gonormalizer "github.com/ii7102/diploma-schema-normalization/go_normalizer"
+	"github.com/ii7102/diploma-schema-normalization/rules"
 	"github.com/stretchr/testify/assert"
 )
 

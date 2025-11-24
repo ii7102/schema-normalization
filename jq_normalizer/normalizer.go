@@ -1,7 +1,7 @@
 package jqnormalizer
 
 import (
-	"diploma/rules"
+	"github.com/ii7102/diploma-schema-normalization/rules"
 	"github.com/itchyny/gojq"
 )
 

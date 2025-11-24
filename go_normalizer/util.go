@@ -3,7 +3,7 @@ package gonormalizer
 import (
 	"time"
 
-	"diploma/rules"
+	"github.com/ii7102/diploma-schema-normalization/rules"
 )
 
 func baseLayoutFormat(bt rules.BaseType) string {
