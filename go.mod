@@ -1,4 +1,4 @@
-module github.com/ii7102/diploma-schema-normalization
+module github.com/ii7102/schema-normalization
 
 go 1.25.4
 
