@@ -66,10 +66,6 @@ func normalize(value any, fieldType rules.FieldType) (normalizedValue any, err e
 		return normalizedValue, nil
 	}
 
-	if normalizedValue == nil {
-		return nil, rules.WrappedError(errInvalidEnumValue, "value is nil")
-	}
-
 	if err = validateEnum(normalizedValue, fieldType.EnumValues(), fieldType.IsArray()); err != nil {
 		return nil, err
 	}
@@ -87,6 +83,8 @@ func normalizeArray(value any, fieldType rules.FieldType) (any, error) {
 	for i := range reflectVal.Len() {
 		elem := reflectVal.Index(i).Interface()
 		if elem == nil {
+			normalizedArray = append(normalizedArray, nil)
+
 			continue
 		}
 
@@ -250,7 +248,7 @@ func normalizeObject(value any, fieldType rules.FieldType) (any, error) {
 
 func validateEnum(normalizedValue any, enumValues []any, isArray bool) error {
 	if !isArray {
-		if !slices.Contains(enumValues, normalizedValue) {
+		if normalizedValue != nil && !slices.Contains(enumValues, normalizedValue) {
 			return rules.WrappedError(errInvalidEnumValue, "value: %v", normalizedValue)
 		}
 

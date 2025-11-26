@@ -2,6 +2,8 @@ package rules
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 )
 
 // Field is a string representation of a field name.
@@ -49,8 +51,27 @@ func (bt BaseType) String() string {
 	}
 }
 
+type enumValues []any
+
+func (ev enumValues) String() string {
+	if len(ev) == 0 {
+		return ""
+	}
+
+	enumValues := make([]string, len(ev))
+	for i, enumValue := range ev {
+		if s, ok := enumValue.(string); ok {
+			enumValues[i] = strconv.Quote(s)
+		} else {
+			enumValues[i] = fmt.Sprintf("%v", enumValue)
+		}
+	}
+
+	return fmt.Sprintf("[%s]", strings.Join(enumValues, ", "))
+}
+
 type enum struct {
-	values []any
+	values enumValues
 }
 
 type object struct {
@@ -81,7 +102,7 @@ func (ft *FieldType) SetIsArray(isArray bool) {
 }
 
 // EnumValues returns the enum values for the given fieldType.
-func (ft FieldType) EnumValues() []any {
+func (ft FieldType) EnumValues() enumValues {
 	if ft.enum == nil {
 		return nil
 	}
@@ -128,11 +149,11 @@ func (ft FieldType) ObjectFields() map[Field]FieldType {
 func (ft FieldType) String() string {
 	str := ft.baseType.String()
 	if ft.enum != nil {
-		str = fmt.Sprintf("enum<%s>", str)
+		str = "enum_" + str
 	}
 
 	if ft.isArray {
-		str = fmt.Sprintf("array<%s>", str)
+		str = "array_" + str
 	}
 
 	return str

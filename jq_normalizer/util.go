@@ -11,45 +11,79 @@ import (
 )
 
 const (
-	commonRule = "\n%[1]s: (.%[1]s | %s )"
+	commonRule = "\n%[1]s: .%[1]s | %s"
 
-	nullRule = "if . == null then . else "
+	nullRule    = "if . == null then null else %s"
+	endRule     = "end "
+	nullEndRule = nullRule + endRule
 
-	booleanRule      = "if type == \"string\" then (. == \"true\") else . end"
-	integerRule      = nullRule + "tonumber | round end"
-	stringRule       = nullRule + "tostring end"
-	floatRule        = nullRule + "tonumber * 1.0 end"
-	booleanArrayRule = nullRule + "map(if type == \"string\" then (. == \"true\") else . end) end"
-	integerArrayRule = nullRule + "map(" + nullRule + "tonumber | round end) end"
-	stringArrayRule  = nullRule + "map(" + nullRule + "tostring end) end"
-	floatArrayRule   = nullRule + "map(" + nullRule + "tonumber * 1.0 end) end"
+	booleanRule = "if . == \"true\" then true elif . == \"false\" then false else . " + endRule
+	integerRule = "tonumber | trunc "
+	stringRule  = "tostring "
+	floatRule   = "tonumber "
+
+	enumErrorRule = "error(\"Invalid enum value: \" + $val | tostring) "
+	enumCheck     = "as $val | if $enums | index($val) then $val else " + enumErrorRule + endRule
+
+	enumRule = "%s as $enums | %s " + enumCheck
+
+	arrayRule = "map( " + nullEndRule + ") "
+
+	arrayEnumRule = "%s as $enums | map( " + nullRule + enumCheck + endRule + ") "
 )
 
-func jqRules() map[string]string {
-	return map[string]string{
-		"boolean":        booleanRule,
-		"integer":        integerRule,
-		"string":         stringRule,
-		"float":          floatRule,
-		"array<boolean>": booleanArrayRule,
-		"array<integer>": integerArrayRule,
-		"array<string>":  stringArrayRule,
-		"array<float>":   floatArrayRule,
+func baseTypeJqRule(baseType rules.BaseType) string {
+	switch baseType {
+	case rules.Boolean:
+		return booleanRule
+	case rules.Integer:
+		return integerRule
+	case rules.String:
+		return stringRule
+	case rules.Float:
+		return floatRule
+	default:
+		return ""
 	}
 }
 
-func jqFilter(fields map[rules.Field]rules.FieldType) string {
-	jqRules := jqRules()
+func generateJqRule(fieldType rules.FieldType) string {
+	var (
+		jqRule  = baseTypeJqRule(fieldType.BaseType())
+		isArray = fieldType.IsArray()
+		enums   = fieldType.EnumValues().String()
+	)
 
-	jqRulesArray := make([]string, 0, len(fields))
+	if jqRule == "" {
+		return ""
+	}
+
+	switch {
+	case isArray && enums != "":
+		jqRule = fmt.Sprintf(arrayEnumRule, enums, jqRule)
+	case enums != "":
+		jqRule = fmt.Sprintf(enumRule, enums, jqRule)
+	case isArray:
+		jqRule = fmt.Sprintf(arrayRule, jqRule)
+	default:
+	}
+
+	return fmt.Sprintf(nullEndRule, jqRule)
+}
+
+func jqFilter(fields map[rules.Field]rules.FieldType) string {
+	jqRules := make([]string, 0, len(fields))
 	for field, fieldType := range fields {
-		jqRule, ok := jqRules[fieldType.String()]
-		if ok {
-			jqRulesArray = append(jqRulesArray, fmt.Sprintf(commonRule, field, jqRule))
+		if jqRule := generateJqRule(fieldType); jqRule != "" {
+			jqRules = append(jqRules, fmt.Sprintf(commonRule, field, jqRule))
 		}
 	}
 
-	return fmt.Sprintf("{%s\n}", strings.Join(jqRulesArray, ","))
+	return fmt.Sprintf("{%s\n}", strings.Join(jqRules, ","))
+}
+
+func jqBatchFilter(fields map[rules.Field]rules.FieldType) string {
+	return fmt.Sprintf("[.[] | %s]", jqFilter(fields))
 }
 
 func compileJqCode(jqFilter string) *gojq.Code {

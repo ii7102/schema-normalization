@@ -14,5 +14,6 @@ func Test_GoNormalizer(t *testing.T) {
 	err := rules.ValidateNormalizer(func(opts ...rules.NormalizerOption) (rules.AbstractNormalizer, error) {
 		return gonormalizer.NewNormalizer(opts...)
 	})
+
 	assert.NoError(t, err)
 }

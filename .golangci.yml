@@ -3,7 +3,7 @@ version: "2"
 linters:
   default: all
   disable:
-    - wsl
+    - wsl # deprecated
     - recvcheck
     - noinlineerr
     - exhaustruct
@@ -29,7 +29,7 @@ linters:
       default-case-required: true
     wrapcheck:
       ignore-package-globs:
-        - github.com/ii7102/schema-normalization/rules
+        - github.com/ii7102/schema-normalization/*
     copyloopvar:
       check-alias: true
     revive:

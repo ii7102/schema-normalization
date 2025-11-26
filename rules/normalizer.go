@@ -141,6 +141,7 @@ func WithArrayOfEnumOfFloatFields(enumValues []any, fields ...Field) NormalizerO
 // It defines the methods that all normalizers must implement.
 type AbstractNormalizer interface {
 	Normalize(data map[string]any) (map[string]any, error)
+	NormalizeBatch(data []any) ([]any, error)
 	SetField(field Field, fieldType FieldType)
 	RemoveField(field Field)
 }
@@ -180,5 +181,10 @@ func (n *BaseNormalizer) RemoveField(field Field) {
 
 // Normalize is a placeholder for the concrete normalizer implementation.
 func (*BaseNormalizer) Normalize(data map[string]any) (map[string]any, error) {
+	return data, nil
+}
+
+// NormalizeBatch is a placeholder for the concrete normalizer implementation.
+func (*BaseNormalizer) NormalizeBatch(data []any) ([]any, error) {
 	return data, nil
 }

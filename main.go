@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"log"
+	"maps"
 	"os"
 	"runtime"
 	"sync"
@@ -39,22 +40,23 @@ func main() {
 	normalizerType := flag.String("normalizer", "go", "normalizer type: go or jq")
 	concurrently := flag.Bool("concurrently", false, "run the normalization concurrently")
 	numOfIterations := flag.Int("iterations", 1, "number of iterations")
+	batch := flag.Bool("batch", false, "run the normalization in batch mode")
 
 	flag.Parse()
 
-	input, err := os.ReadFile("test_data.json")
-	if err != nil {
-		log.Fatalf("failed to read input file: %v", err)
+	if *numOfIterations <= 0 {
+		log.Fatal("number of iterations must be greater than 0")
+	}
+
+	if *batch && *concurrently {
+		log.Fatal("batch and concurrently cannot be used together")
 	}
 
 	var (
 		data       map[string]any
 		normalizer rules.AbstractNormalizer
+		err        error
 	)
-
-	if err := json.Unmarshal(input, &data); err != nil {
-		log.Fatalf("failed to unmarshal input file: %v", err)
-	}
 
 	switch *normalizerType {
 	case "go":
@@ -69,11 +71,24 @@ func main() {
 		log.Fatalf("failed to create normalizer: %v", err)
 	}
 
-	log.Println("Normalizer: ", *normalizerType)
-	log.Println("Concurrently: ", *concurrently)
-	log.Println("Number of iterations: ", *numOfIterations)
+	input, err := os.ReadFile("test_data.json")
+	if err != nil {
+		log.Fatalf("failed to read input file: %v", err)
+	}
 
-	normalize(normalizer, data, *concurrently, *numOfIterations)
+	if err = json.Unmarshal(input, &data); err != nil {
+		log.Fatalf("failed to unmarshal input file: %v", err)
+	}
+
+	log.Println("--------------------------------")
+	log.Println("--- Benchmark Configuration ---")
+	log.Printf("Normalizer: %s\n", *normalizerType)
+	log.Printf("Concurrently: %t\n", *concurrently)
+	log.Printf("Number of iterations: %d\n", *numOfIterations)
+	log.Printf("Batch: %t\n", *batch)
+	log.Println("--------------------------------")
+
+	normalize(normalizer, data, *concurrently, *batch, *numOfIterations)
 }
 
 type MemStats struct {
@@ -101,24 +116,35 @@ func printMemoryEfficiency(iterations int, memUsed, totalAllocated float64, dura
 	totalAllocatedKB := totalAllocated * 1024
 
 	log.Println("--- Memory Efficiency Analysis ---")
-	log.Println("Memory per iteration: ", memUsedKB/float64(iterations), "KB")
-	log.Println("Total allocations per iteration: ", totalAllocatedKB/float64(iterations), "KB")
-	log.Println("Memory efficiency (MB/s): ", totalAllocated/duration.Seconds(), "MB/s")
-	log.Println("Processing rate: ", float64(iterations)/duration.Seconds(), "iterations/s")
+	log.Printf("Memory per iteration: %.5f KB\n", memUsedKB/float64(iterations))
+	log.Printf("Total allocations per iteration: %.3f KB\n", totalAllocatedKB/float64(iterations))
+	log.Printf("Memory efficiency (MB/s): %.3f MB/s\n", totalAllocated/duration.Seconds())
+	log.Println("--------------------------------")
 }
 
-func normalize(normalizer rules.AbstractNormalizer, data map[string]any, concurrently bool, numOfIterations int) {
+func normalize(normalizer rules.AbstractNormalizer, data map[string]any, concurrently, batch bool, numIterations int) {
+	dataArray := make([]map[string]any, 0, numIterations)
+
+	dataAnyArray := make([]any, 0, numIterations)
+	for range numIterations {
+		dataClone := maps.Clone(data)
+		dataArray = append(dataArray, dataClone)
+		dataAnyArray = append(dataAnyArray, dataClone)
+	}
+
 	runtime.GC()
 	runtime.GC() // Call twice to ensure clean state
 
 	afterPrepStats := getMemStats()
-
 	timeNow := time.Now()
 
-	if concurrently {
-		normalizeConcurrently(normalizer, data, numOfIterations)
-	} else {
-		normalizeSequentially(normalizer, data, numOfIterations)
+	switch {
+	case batch:
+		normalizeBatch(normalizer, dataAnyArray)
+	case concurrently:
+		normalizeConcurrently(normalizer, dataArray)
+	default:
+		normalizeSequentially(normalizer, dataArray)
 	}
 
 	duration := time.Since(timeNow)
@@ -134,28 +160,38 @@ func normalize(normalizer rules.AbstractNormalizer, data map[string]any, concurr
 	memUsedDuringProcess := afterProcessStats.AllocMB - afterPrepStats.AllocMB
 	totalMemAllocated := afterProcessStats.TotalAllocMB - afterPrepStats.TotalAllocMB
 
-	printMemoryEfficiency(numOfIterations, memUsedDuringProcess, totalMemAllocated, duration)
+	printMemoryEfficiency(numIterations, memUsedDuringProcess, totalMemAllocated, duration)
 
-	log.Println("Time: ", duration.String())
+	log.Println("--- Time Efficiency Analysis ---")
+	log.Printf("Time per iteration: %s\n", duration/time.Duration(numIterations))
+	log.Printf("Processing rate: %.1f iterations/s\n", float64(numIterations)/duration.Seconds())
+	log.Printf("Total time: %.3fs\n", duration.Seconds())
+	log.Println("--------------------------------")
 }
 
-func normalizeSequentially(normalizer rules.AbstractNormalizer, data map[string]any, numOfIterations int) {
-	for range numOfIterations {
+func normalizeSequentially(normalizer rules.AbstractNormalizer, dataArray []map[string]any) {
+	for _, data := range dataArray {
 		if _, err := normalizer.Normalize(data); err != nil {
 			log.Printf("Failed to normalize the data, err: %v\n", err)
 		}
 	}
 }
 
-func normalizeConcurrently(normalizer rules.AbstractNormalizer, data map[string]any, numOfIterations int) {
+func normalizeBatch(normalizer rules.AbstractNormalizer, dataArray []any) {
+	if _, err := normalizer.NormalizeBatch(dataArray); err != nil {
+		log.Printf("Failed to normalize the data batch, err: %v\n", err)
+	}
+}
+
+func normalizeConcurrently(normalizer rules.AbstractNormalizer, dataArray []map[string]any) {
 	var (
-		errorsChan = make(chan error, numOfIterations)
+		errorsChan = make(chan error, len(dataArray))
 		waitGroup  sync.WaitGroup
 	)
 
-	waitGroup.Add(numOfIterations)
+	waitGroup.Add(len(dataArray))
 
-	for range numOfIterations {
+	for _, data := range dataArray {
 		go func(dataElem map[string]any) {
 			defer waitGroup.Done()
 
