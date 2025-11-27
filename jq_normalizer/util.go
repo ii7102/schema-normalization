@@ -37,12 +37,12 @@ const (
 	dateTimeRule  = "try (strptime(%q) | strftime(\"%%Y-%%m-%%d %%H:%%M:%%S\")) catch null "
 )
 
-func timeRegex(layout *string) string {
+func timestampStrptimeFormat(layout *string) string {
 	if layout == nil {
 		return ""
 	}
 
-	return map[string]string{
+	format, found := map[string]string{
 		time.TimeOnly:   "%H:%M:%S",
 		time.Kitchen:    "%I:%M%p",
 		time.Stamp:      "%b %e %H:%M:%S",
@@ -50,14 +50,20 @@ func timeRegex(layout *string) string {
 		time.StampMicro: "%b %e %H:%M:%S.%f",
 		time.StampNano:  "%b %e %H:%M:%S.%f",
 	}[*layout]
+
+	if !found {
+		return ""
+	}
+
+	return format
 }
 
-func dateRegex(layout *string) string {
+func dateTimeStrptimeFormat(layout *string) string {
 	if layout == nil {
 		return ""
 	}
 
-	return map[string]string{
+	format, found := map[string]string{
 		time.RFC3339:     "%Y-%m-%dT%H:%M:%S%z",
 		time.DateTime:    "%Y-%m-%d %H:%M:%S",
 		time.RFC3339Nano: "%Y-%m-%dT%H:%M:%S.%f%z",
@@ -70,6 +76,12 @@ func dateRegex(layout *string) string {
 		time.UnixDate:    "%a %b %e %H:%M:%S %Z %Y",
 		time.RubyDate:    "%a %b %d %H:%M:%S %z %Y",
 	}[*layout]
+
+	if !found {
+		return ""
+	}
+
+	return format
 }
 
 func baseTypeJqRule(fieldType rules.FieldType) string {
@@ -79,8 +91,8 @@ func baseTypeJqRule(fieldType rules.FieldType) string {
 		rules.String:    stringRule,
 		rules.Float:     floatRule,
 		rules.Date:      dateRule,
-		rules.Timestamp: fmt.Sprintf(timestampRule, timeRegex(fieldType.Layout())),
-		rules.DateTime:  fmt.Sprintf(dateTimeRule, dateRegex(fieldType.Layout())),
+		rules.Timestamp: fmt.Sprintf(timestampRule, timestampStrptimeFormat(fieldType.Layout())),
+		rules.DateTime:  fmt.Sprintf(dateTimeRule, dateTimeStrptimeFormat(fieldType.Layout())),
 		rules.Object:    jqFilter(fieldType.ObjectFields()),
 	}[fieldType.BaseType()]
 }

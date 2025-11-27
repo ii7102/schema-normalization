@@ -23,7 +23,7 @@ func NewBaseNormalizer(options ...NormalizerOption) (*BaseNormalizer, error) {
 	return normalizer, nil
 }
 
-// SetField sets the given field and it's type to the normalizer.
+// SetField sets the given field and its type to the normalizer.
 func (n *BaseNormalizer) SetField(field Field, fieldType FieldType) {
 	n.Fields[field] = fieldType
 }
