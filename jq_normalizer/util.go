@@ -7,11 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ii7102/schema-normalization/rules"
+	"github.com/ii7102/schema-normalization/schema"
 	"github.com/itchyny/gojq"
 )
 
 const (
+	maxDepth = 10
+
 	commonRule = "\n%[1]s: .%[1]s | %s"
 
 	nullRule    = "if . == null then null else %s"
@@ -42,7 +44,7 @@ func timestampStrptimeFormat(layout *string) string {
 		return ""
 	}
 
-	format, found := map[string]string{
+	return map[string]string{
 		time.TimeOnly:   "%H:%M:%S",
 		time.Kitchen:    "%I:%M%p",
 		time.Stamp:      "%b %e %H:%M:%S",
@@ -50,12 +52,6 @@ func timestampStrptimeFormat(layout *string) string {
 		time.StampMicro: "%b %e %H:%M:%S.%f",
 		time.StampNano:  "%b %e %H:%M:%S.%f",
 	}[*layout]
-
-	if !found {
-		return ""
-	}
-
-	return format
 }
 
 func dateTimeStrptimeFormat(layout *string) string {
@@ -63,7 +59,7 @@ func dateTimeStrptimeFormat(layout *string) string {
 		return ""
 	}
 
-	format, found := map[string]string{
+	return map[string]string{
 		time.RFC3339:     "%Y-%m-%dT%H:%M:%S%z",
 		time.DateTime:    "%Y-%m-%d %H:%M:%S",
 		time.RFC3339Nano: "%Y-%m-%dT%H:%M:%S.%f%z",
@@ -76,30 +72,24 @@ func dateTimeStrptimeFormat(layout *string) string {
 		time.UnixDate:    "%a %b %e %H:%M:%S %Z %Y",
 		time.RubyDate:    "%a %b %d %H:%M:%S %z %Y",
 	}[*layout]
-
-	if !found {
-		return ""
-	}
-
-	return format
 }
 
-func baseTypeJqRule(fieldType rules.FieldType) string {
-	return map[rules.BaseType]string{
-		rules.Boolean:   booleanRule,
-		rules.Integer:   integerRule,
-		rules.String:    stringRule,
-		rules.Float:     floatRule,
-		rules.Date:      dateRule,
-		rules.Timestamp: fmt.Sprintf(timestampRule, timestampStrptimeFormat(fieldType.Layout())),
-		rules.DateTime:  fmt.Sprintf(dateTimeRule, dateTimeStrptimeFormat(fieldType.Layout())),
-		rules.Object:    jqFilter(fieldType.ObjectFields()),
+func baseTypeJqRule(fieldType schema.FieldType, depth int) string {
+	return map[schema.BaseType]string{
+		schema.Boolean:   booleanRule,
+		schema.Integer:   integerRule,
+		schema.String:    stringRule,
+		schema.Float:     floatRule,
+		schema.Date:      dateRule,
+		schema.Timestamp: fmt.Sprintf(timestampRule, timestampStrptimeFormat(fieldType.Layout())),
+		schema.DateTime:  fmt.Sprintf(dateTimeRule, dateTimeStrptimeFormat(fieldType.Layout())),
+		schema.Object:    jqFilter(fieldType.ObjectFields(), depth+1),
 	}[fieldType.BaseType()]
 }
 
-func generateJqRule(fieldType rules.FieldType) string {
+func generateJqRule(fieldType schema.FieldType, depth int) string {
 	var (
-		jqRule  = baseTypeJqRule(fieldType)
+		jqRule  = baseTypeJqRule(fieldType, depth)
 		isArray = fieldType.IsArray()
 		enums   = fieldType.EnumValues()
 	)
@@ -121,10 +111,14 @@ func generateJqRule(fieldType rules.FieldType) string {
 	return fmt.Sprintf(nullEndRule, jqRule)
 }
 
-func jqFilter(fields map[rules.Field]rules.FieldType) string {
+func jqFilter(fields map[schema.Field]schema.FieldType, depth int) string {
+	if depth > maxDepth {
+		return ""
+	}
+
 	jqRules := make([]string, 0, len(fields))
 	for field, fieldType := range fields {
-		if jqRule := generateJqRule(fieldType); jqRule != "" {
+		if jqRule := generateJqRule(fieldType, depth); jqRule != "" {
 			jqRules = append(jqRules, fmt.Sprintf(commonRule, field, jqRule))
 		}
 	}
@@ -132,8 +126,8 @@ func jqFilter(fields map[rules.Field]rules.FieldType) string {
 	return fmt.Sprintf("{%s\n}", strings.Join(jqRules, ","))
 }
 
-func jqBatchFilter(fields map[rules.Field]rules.FieldType) string {
-	return fmt.Sprintf("[.[] | %s]", jqFilter(fields))
+func jqBatchFilter(fields map[schema.Field]schema.FieldType) string {
+	return fmt.Sprintf("[.[] | %s]", jqFilter(fields, 0))
 }
 
 func compileJqCode(jqFilter string) *gojq.Code {

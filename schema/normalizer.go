@@ -1,4 +1,4 @@
-package rules
+package schema
 
 // NormalizerOption is a function that sets fields of some type to the normalizer.
 type NormalizerOption func(AbstractNormalizer) error

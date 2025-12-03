@@ -1,8 +1,7 @@
-package rules
+package schema
 
 import (
 	"errors"
-	"fmt"
 )
 
 var (
@@ -15,19 +14,10 @@ var (
 	errObjectFieldsCannotBeNil      = errors.New("object fields cannot be nil")
 	errObjectFieldsCannotBeEmpty    = errors.New("object fields cannot be empty")
 	errNestedObjectsAreNotSupported = errors.New("nested objects are not supported")
+	errObjectFieldsNotSet           = errors.New("object fields are not set")
+	errFieldTypeIsNotAnObject       = errors.New("field type is not an object")
 
 	errInvalidTimestampLayout = errors.New("invalid timestamp layout")
 	errInvalidDateTimeLayout  = errors.New("invalid dateTime layout")
 	errBaseTypeWithoutLayout  = errors.New("base type without layout")
-
-	errExpectedOutputMismatch = errors.New("expected output does not match actual output")
 )
-
-// WrappedError wraps the given error with the given message and arguments.
-func WrappedError(err error, msg string, args ...any) error {
-	if err == nil {
-		return nil
-	}
-
-	return fmt.Errorf("%w: %s", err, fmt.Sprintf(msg, args...))
-}

@@ -1,4 +1,4 @@
-package rules
+package validation
 
 import (
 	"fmt"
@@ -6,10 +6,26 @@ import (
 	"reflect"
 	"strconv"
 	"time"
+
+	"github.com/ii7102/schema-normalization/schema"
 )
 
 const (
-	nonExistingTestField = "nonExistingTestField"
+	nonExistingTestField      = "non_existing_test_field"
+	booleanTestField          = "boolean_test_field"
+	integerTestField          = "integer_test_field"
+	stringTestField           = "string_test_field"
+	floatTestField            = "float_test_field"
+	enumStringTestField       = "enum_string_test_field"
+	arrayOfBooleanTestField   = "array_of_boolean_test_field"
+	arrayOfIntegerTestField   = "array_of_integer_test_field"
+	arrayOfStringTestField    = "array_of_string_test_field"
+	arrayOfFloatTestField     = "array_of_float_test_field"
+	arrayOfFloatEnumTestField = "array_of_float_enum_test_field"
+	objectTestField           = "object_test_field"
+	dateTestField             = "date_test_field"
+	timestampTestField        = "timestamp_test_field"
+	dateTimeTestField         = "date_time_test_field"
 
 	maxStringLength = 100
 	maxBoolean      = 2
@@ -23,37 +39,31 @@ func floatEnumValues() []any {
 	return []any{0.0, 1.0, -1.0, -1.1, 1.1, 0.0}
 }
 
-func objectFields() map[Field]FieldType {
-	return map[Field]FieldType{
-		BooleanType().Field(): BooleanType(),
-		IntegerType().Field(): IntegerType(),
-		StringType().Field():  StringType(),
-		FloatType().Field():   FloatType(),
+func objectFields() map[schema.Field]schema.FieldType {
+	return map[schema.Field]schema.FieldType{
+		schema.BooleanType().Field(): schema.BooleanType(),
+		schema.IntegerType().Field(): schema.IntegerType(),
+		schema.StringType().Field():  schema.StringType(),
+		schema.FloatType().Field():   schema.FloatType(),
 	}
 }
 
-func testNormalizerOptions() []NormalizerOption {
-	stringEnum, _ := EnumOf(StringType(), stringEnumValues()...)
-	floatEnum, _ := EnumOf(FloatType(), floatEnumValues()...)
-	objectType, _ := ObjectType(objectFields())
-	timestampType, _ := TimestampType(time.Kitchen)
-	dateTimeType, _ := DateTimeType(time.RFC3339)
-
-	return []NormalizerOption{
-		WithBooleanFields(BooleanType().Field()),
-		WithIntegerFields(IntegerType().Field()),
-		WithStringFields(StringType().Field()),
-		WithFloatFields(FloatType().Field()),
-		WithEnumOfStringFields(stringEnumValues(), stringEnum.Field()),
-		WithArrayOfBooleanFields(ArrayOf(BooleanType()).Field()),
-		WithArrayOfIntegerFields(ArrayOf(IntegerType()).Field()),
-		WithArrayOfStringFields(ArrayOf(StringType()).Field()),
-		WithArrayOfFloatFields(ArrayOf(FloatType()).Field()),
-		WithArrayOfEnumOfFloatFields(floatEnumValues(), ArrayOf(floatEnum).Field()),
-		WithObjectField(objectFields(), objectType.Field()),
-		WithDateFields(DateType().Field()),
-		WithTimestampFields(time.Kitchen, timestampType.Field()),
-		WithDateTimeFields(time.RFC3339, dateTimeType.Field()),
+func normalizerTestOptions() []schema.NormalizerOption {
+	return []schema.NormalizerOption{
+		schema.WithBooleanFields(booleanTestField),
+		schema.WithIntegerFields(integerTestField),
+		schema.WithStringFields(stringTestField),
+		schema.WithFloatFields(floatTestField),
+		schema.WithEnumOfStringFields(stringEnumValues(), enumStringTestField),
+		schema.WithArrayOfBooleanFields(arrayOfBooleanTestField),
+		schema.WithArrayOfIntegerFields(arrayOfIntegerTestField),
+		schema.WithArrayOfStringFields(arrayOfStringTestField),
+		schema.WithArrayOfFloatFields(arrayOfFloatTestField),
+		schema.WithArrayOfEnumOfFloatFields(floatEnumValues(), arrayOfFloatEnumTestField),
+		schema.WithObjectField(objectFields(), objectTestField),
+		schema.WithDateFields(dateTestField),
+		schema.WithTimestampFields(time.Kitchen, timestampTestField),
+		schema.WithDateTimeFields(time.RFC3339, dateTimeTestField),
 	}
 }
 
@@ -386,25 +396,23 @@ func dateTimeTypeTests() []inputOutput {
 
 func validateTests() map[string][]inputOutput {
 	rnd := generateRandomTestValues()
-	enumString, _ := EnumOf(StringType(), stringEnumValues()...)
-	floatEnum, _ := EnumOf(FloatType(), floatEnumValues()...)
 
 	return map[string][]inputOutput{
-		nonExistingTestField:                    nonExistingFieldTests(rnd),
-		BooleanType().String():                  booleanTypeTests(),
-		IntegerType().String():                  integerTypeTests(rnd),
-		StringType().String():                   stringTypeTests(rnd),
-		FloatType().String():                    floatTypeTests(rnd),
-		enumString.String():                     stringEnumTests(),
-		ArrayOf(BooleanType()).String():         arrayOfBooleanTypeTests(),
-		ArrayOf(IntegerType()).String():         arrayOfIntegerTypeTests(rnd),
-		ArrayOf(StringType()).String():          arrayOfStringTypeTests(rnd),
-		ArrayOf(FloatType()).String():           arrayOfFloatTypeTests(rnd),
-		ArrayOf(floatEnum).String():             arrayOfFloatEnumTests(),
-		FieldType{baseType: Object}.String():    objectTests(rnd),
-		DateType().String():                     dateTypeTests(),
-		FieldType{baseType: Timestamp}.String(): timestampTypeTests(),
-		FieldType{baseType: DateTime}.String():  dateTimeTypeTests(),
+		nonExistingTestField:      nonExistingFieldTests(rnd),
+		booleanTestField:          booleanTypeTests(),
+		integerTestField:          integerTypeTests(rnd),
+		stringTestField:           stringTypeTests(rnd),
+		floatTestField:            floatTypeTests(rnd),
+		enumStringTestField:       stringEnumTests(),
+		arrayOfBooleanTestField:   arrayOfBooleanTypeTests(),
+		arrayOfIntegerTestField:   arrayOfIntegerTypeTests(rnd),
+		arrayOfStringTestField:    arrayOfStringTypeTests(rnd),
+		arrayOfFloatTestField:     arrayOfFloatTypeTests(rnd),
+		arrayOfFloatEnumTestField: arrayOfFloatEnumTests(),
+		objectTestField:           objectTests(rnd),
+		dateTestField:             dateTypeTests(),
+		timestampTestField:        timestampTypeTests(),
+		dateTimeTestField:         dateTimeTypeTests(),
 	}
 }
 

@@ -12,24 +12,24 @@ import (
 
 	gonormalizer "github.com/ii7102/schema-normalization/go_normalizer"
 	jqnormalizer "github.com/ii7102/schema-normalization/jq_normalizer"
-	"github.com/ii7102/schema-normalization/rules"
+	"github.com/ii7102/schema-normalization/schema"
 )
 
-func normalizerOptions() []rules.NormalizerOption {
-	return []rules.NormalizerOption{
-		rules.WithBooleanFields("isActive", "isActive2", "isActive3", "isActive4"),
-		rules.WithIntegerFields("age", "age2", "age3", "age4", "age5"),
-		rules.WithStringFields("name", "name2", "name3", "name4", "name5"),
-		rules.WithFloatFields("measure", "measure2", "measure3", "measure4", "measure5"),
-		rules.WithEnumOfStringFields(
+func normalizerOptions() []schema.NormalizerOption {
+	return []schema.NormalizerOption{
+		schema.WithBooleanFields("isActive", "isActive2", "isActive3", "isActive4"),
+		schema.WithIntegerFields("age", "age2", "age3", "age4", "age5"),
+		schema.WithStringFields("name", "name2", "name3", "name4", "name5"),
+		schema.WithFloatFields("measure", "measure2", "measure3", "measure4", "measure5"),
+		schema.WithEnumOfStringFields(
 			[]any{"Alice", "Bob", "Charlie"},
 			"enumString", "enumString2", "enumString3", "enumString4",
 		),
-		rules.WithArrayOfBooleanFields("booleanArray", "booleanArray2", "booleanArray3", "booleanArray4", "booleanArray5"),
-		rules.WithArrayOfIntegerFields("integerArray", "integerArray2", "integerArray3", "integerArray4", "integerArray5"),
-		rules.WithArrayOfStringFields("stringArray", "stringArray2", "stringArray3", "stringArray4", "stringArray5"),
-		rules.WithArrayOfFloatFields("floatArray", "floatArray2", "floatArray3", "floatArray4", "floatArray5"),
-		rules.WithArrayOfEnumOfStringFields(
+		schema.WithArrayOfBooleanFields("booleanArray", "booleanArray2", "booleanArray3", "booleanArray4", "booleanArray5"),
+		schema.WithArrayOfIntegerFields("integerArray", "integerArray2", "integerArray3", "integerArray4", "integerArray5"),
+		schema.WithArrayOfStringFields("stringArray", "stringArray2", "stringArray3", "stringArray4", "stringArray5"),
+		schema.WithArrayOfFloatFields("floatArray", "floatArray2", "floatArray3", "floatArray4", "floatArray5"),
+		schema.WithArrayOfEnumOfStringFields(
 			[]any{"Alice", "Bob", "Charlie"},
 			"enumStringArray", "enumStringArray2", "enumStringArray3", "enumStringArray4",
 		),
@@ -54,7 +54,7 @@ func main() {
 
 	var (
 		data       map[string]any
-		normalizer rules.AbstractNormalizer
+		normalizer schema.AbstractNormalizer
 		err        error
 	)
 
@@ -122,7 +122,7 @@ func printMemoryEfficiency(iterations int, memUsed, totalAllocated float64, dura
 	log.Println("--------------------------------")
 }
 
-func normalize(normalizer rules.AbstractNormalizer, data map[string]any, concurrently, batch bool, numIterations int) {
+func normalize(normalizer schema.AbstractNormalizer, data map[string]any, concurrently, batch bool, numIterations int) {
 	dataArray := make([]map[string]any, 0, numIterations)
 
 	dataAnyArray := make([]any, 0, numIterations)
@@ -169,7 +169,7 @@ func normalize(normalizer rules.AbstractNormalizer, data map[string]any, concurr
 	log.Println("--------------------------------")
 }
 
-func normalizeSequentially(normalizer rules.AbstractNormalizer, dataArray []map[string]any) {
+func normalizeSequentially(normalizer schema.AbstractNormalizer, dataArray []map[string]any) {
 	for _, data := range dataArray {
 		if _, err := normalizer.Normalize(data); err != nil {
 			log.Printf("Failed to normalize the data, err: %v\n", err)
@@ -177,13 +177,13 @@ func normalizeSequentially(normalizer rules.AbstractNormalizer, dataArray []map[
 	}
 }
 
-func normalizeBatch(normalizer rules.AbstractNormalizer, dataArray []any) {
+func normalizeBatch(normalizer schema.AbstractNormalizer, dataArray []any) {
 	if _, err := normalizer.NormalizeBatch(dataArray); err != nil {
 		log.Printf("Failed to normalize the data batch, err: %v\n", err)
 	}
 }
 
-func normalizeConcurrently(normalizer rules.AbstractNormalizer, dataArray []map[string]any) {
+func normalizeConcurrently(normalizer schema.AbstractNormalizer, dataArray []map[string]any) {
 	var (
 		errorsChan = make(chan error, len(dataArray))
 		waitGroup  sync.WaitGroup

@@ -1,6 +1,10 @@
-package rules
+package schema
 
-import "time"
+import (
+	"time"
+
+	"github.com/ii7102/schema-normalization/errors"
+)
 
 // ArrayOf updates the given fieldType to be an array.
 func ArrayOf(fieldType FieldType) FieldType {
@@ -32,7 +36,7 @@ func FloatType() FieldType {
 // ObjectType validates the given object fields and returns a new FieldType with the object fields set.
 func ObjectType(objectFields map[Field]FieldType) (FieldType, error) {
 	if err := validateObjectFields(objectFields); err != nil {
-		return FieldType{}, WrappedError(err, "invalid object fields: %v", objectFields)
+		return FieldType{}, errors.WrappedError(err, "invalid object fields: %v", objectFields)
 	}
 
 	return FieldType{
@@ -50,14 +54,6 @@ func EnumOf(fieldType FieldType, enumValues ...any) (FieldType, error) {
 	return fieldType, nil
 }
 
-func temporalType(baseType BaseType, layout string, validateLayoutFunc func(string) error) (FieldType, error) {
-	if err := validateLayoutFunc(layout); err != nil {
-		return FieldType{}, err
-	}
-
-	return FieldType{baseType: baseType, layout: &layout}, nil
-}
-
 // DateType returns a new FieldType with the date base type set.
 func DateType() FieldType {
 	layout := time.DateOnly
@@ -65,12 +61,20 @@ func DateType() FieldType {
 	return FieldType{baseType: Date, layout: &layout}
 }
 
-// TimestampType returns a new FieldType with the timestamp base type set.
+// TimestampType validates the given layout and returns a new FieldType with the timestamp base type set.
 func TimestampType(layout string) (FieldType, error) {
-	return temporalType(Timestamp, layout, validateTimestampLayout)
+	if err := validateDateTime(layout, Timestamp); err != nil {
+		return FieldType{}, err
+	}
+
+	return FieldType{baseType: Timestamp, layout: &layout}, nil
 }
 
-// DateTimeType returns a new FieldType with the dateTime base type set.
+// DateTimeType validates the given layout and returns a new FieldType with the dateTime base type set.
 func DateTimeType(layout string) (FieldType, error) {
-	return temporalType(DateTime, layout, validateDateTimeLayout)
+	if err := validateDateTime(layout, DateTime); err != nil {
+		return FieldType{}, err
+	}
+
+	return FieldType{baseType: DateTime, layout: &layout}, nil
 }

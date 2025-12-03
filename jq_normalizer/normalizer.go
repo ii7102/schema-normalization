@@ -1,38 +1,39 @@
 package jqnormalizer
 
 import (
-	"github.com/ii7102/schema-normalization/rules"
+	"github.com/ii7102/schema-normalization/errors"
+	"github.com/ii7102/schema-normalization/schema"
 	"github.com/itchyny/gojq"
 )
 
-var _ rules.AbstractNormalizer = (*normalizer)(nil)
+var _ schema.AbstractNormalizer = (*normalizer)(nil)
 
 type normalizer struct {
-	*rules.BaseNormalizer
+	*schema.BaseNormalizer
 
 	cachedCode *gojq.Code
 }
 
 // NewNormalizer creates a new JQ normalizer with the given options and caches the compiled JQ code.
-func NewNormalizer(options ...rules.NormalizerOption) (*normalizer, error) {
-	base, err := rules.NewBaseNormalizer(options...)
+func NewNormalizer(opts ...schema.NormalizerOption) (*normalizer, error) {
+	base, err := schema.NewBaseNormalizer(opts...)
 	if err != nil {
-		return nil, rules.WrappedError(err, "failed to create base normalizer")
+		return nil, errors.WrappedError(err, "failed to create base normalizer")
 	}
 
 	return &normalizer{
 		BaseNormalizer: base,
-		cachedCode:     compileJqCode(jqFilter(base.Fields)),
+		cachedCode:     compileJqCode(jqFilter(base.Fields(), 0)),
 	}, nil
 }
 
-func (n *normalizer) SetField(field rules.Field, fieldType rules.FieldType) {
+func (n *normalizer) SetField(field schema.Field, fieldType schema.FieldType) {
 	n.BaseNormalizer.SetField(field, fieldType)
 	n.CacheCompiledJqCode()
 }
 
-func (n *normalizer) RemoveField(field rules.Field) {
-	if _, ok := n.Fields[field]; !ok {
+func (n *normalizer) RemoveField(field schema.Field) {
+	if !n.HasField(field) {
 		return
 	}
 
@@ -41,15 +42,15 @@ func (n *normalizer) RemoveField(field rules.Field) {
 }
 
 func (n *normalizer) JqFilter() string {
-	return jqFilter(n.Fields)
+	return jqFilter(n.Fields(), 0)
 }
 
 func (n *normalizer) JqBatchFilter() string {
-	return jqBatchFilter(n.Fields)
+	return jqBatchFilter(n.Fields())
 }
 
 func (n *normalizer) CacheCompiledJqCode() {
-	n.cachedCode = compileJqCode(jqFilter(n.Fields))
+	n.cachedCode = compileJqCode(n.JqFilter())
 }
 
 func (n *normalizer) Normalize(data map[string]any) (map[string]any, error) {
@@ -70,7 +71,7 @@ func (n *normalizer) Normalize(data map[string]any) (map[string]any, error) {
 	case map[string]any:
 		return result, nil
 	default:
-		return nil, rules.WrappedError(errUnexpectedResultType, "unexpected result type: %T", result)
+		return nil, errors.WrappedError(errUnexpectedResultType, "unexpected result type: %T", result)
 	}
 }
 
@@ -80,7 +81,7 @@ func (n *normalizer) Normalize(data map[string]any) (map[string]any, error) {
 func (n *normalizer) NormalizeBatch(data []any) ([]any, error) {
 	jqQuery, err := gojq.Parse(n.JqBatchFilter())
 	if err != nil {
-		return nil, rules.WrappedError(err, "failed to parse JQ batch filter")
+		return nil, errors.WrappedError(err, "failed to parse JQ batch filter")
 	}
 
 	iter := jqQuery.Run(data)
@@ -96,6 +97,6 @@ func (n *normalizer) NormalizeBatch(data []any) ([]any, error) {
 	case []any:
 		return result, nil
 	default:
-		return nil, rules.WrappedError(errUnexpectedResultType, "unexpected result type: %T", result)
+		return nil, errors.WrappedError(errUnexpectedResultType, "unexpected result type: %T", result)
 	}
 }

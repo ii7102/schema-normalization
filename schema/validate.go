@@ -1,7 +1,9 @@
-package rules
+package schema
 
 import (
 	"time"
+
+	"github.com/ii7102/schema-normalization/errors"
 )
 
 func matchesBaseType(baseType BaseType, value any) bool {
@@ -22,7 +24,7 @@ func matchesBaseType(baseType BaseType, value any) bool {
 func validateEnumValues(baseType BaseType, enumValues ...any) error {
 	switch baseType {
 	case Date, Timestamp, DateTime, Object:
-		return WrappedError(errEnumsOfBaseTypeAreNotSupported, "enums of %s are not supported", baseType)
+		return errors.WrappedError(errEnumsOfBaseTypeAreNotSupported, "enums of %s are not supported", baseType)
 	default:
 	}
 
@@ -36,7 +38,7 @@ func validateEnumValues(baseType BaseType, enumValues ...any) error {
 		}
 
 		if !matchesBaseType(baseType, enumValue) {
-			return WrappedError(errEnumValueDoesNotMatchBaseType, "enum value %v is not of %s type", enumValue, baseType)
+			return errors.WrappedError(errEnumValueDoesNotMatchBaseType, "enum value %v is not of %s type", enumValue, baseType)
 		}
 	}
 
@@ -54,10 +56,37 @@ func validateObjectFields(objectFields map[Field]FieldType) error {
 
 	for field, fieldType := range objectFields {
 		if fieldType.baseType == Object {
-			return WrappedError(errNestedObjectsAreNotSupported, "object field '%s' cannot be of type object ", field)
+			return errors.WrappedError(errNestedObjectsAreNotSupported, "object field '%s' cannot be of type object ", field)
 		}
 	}
 
+	return nil
+}
+
+func validateDateTime(layout string, baseType BaseType) error {
+	validateLayoutFunc := validateDateTimeFuncs(baseType)
+
+	if validateLayoutFunc == nil {
+		return errors.WrappedError(errBaseTypeWithoutLayout, "base type %s does not have a layout", baseType)
+	}
+
+	return validateLayoutFunc(layout)
+}
+
+func validateDateTimeFuncs(baseType BaseType) func(string) error {
+	switch baseType {
+	case Timestamp:
+		return validateTimestampLayout
+	case Date:
+		return validateDateLayout
+	case DateTime:
+		return validateDateTimeLayout
+	default:
+		return nil
+	}
+}
+
+func validateDateLayout(_ string) error {
 	return nil
 }
 

@@ -7,7 +7,6 @@ linters:
     - recvcheck
     - noinlineerr
     - exhaustruct
-    - nonamedreturns
   settings:
     errcheck:
       check-type-assertions: true
@@ -43,6 +42,8 @@ linters:
           arguments: [128]
         - name: cognitive-complexity
           arguments: [9]
+        - name: function-length
+          disabled: true # using funlen linter instead (has test file exclusion)
         - name: call-to-gc
           disabled: true # maybe add this in the future
         - name: flag-parameter
@@ -51,9 +52,12 @@ linters:
           disabled: true # maybe add this in the future
   exclusions:
     rules:
-      - path: 'validate_util\.go'
+      - path: 'validation/util\.go'
         linters:
           - gosec
+      - path: '_test\.go'
+        linters:
+          - funlen
     generated: lax
     paths:
       - third_party$

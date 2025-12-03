@@ -9,20 +9,21 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ii7102/schema-normalization/rules"
+	"github.com/ii7102/schema-normalization/errors"
+	"github.com/ii7102/schema-normalization/schema"
 )
 
-var _ rules.AbstractNormalizer = (*normalizer)(nil)
+var _ schema.AbstractNormalizer = (*normalizer)(nil)
 
 type normalizer struct {
-	*rules.BaseNormalizer
+	*schema.BaseNormalizer
 }
 
 // NewNormalizer creates a new Go normalizer with the given options.
-func NewNormalizer(options ...rules.NormalizerOption) (*normalizer, error) {
-	base, err := rules.NewBaseNormalizer(options...)
+func NewNormalizer(opts ...schema.NormalizerOption) (*normalizer, error) {
+	base, err := schema.NewBaseNormalizer(opts...)
 	if err != nil {
-		return nil, rules.WrappedError(err, "failed to create base normalizer")
+		return nil, errors.WrappedError(err, "failed to create base normalizer")
 	}
 
 	return &normalizer{BaseNormalizer: base}, nil
@@ -31,12 +32,12 @@ func NewNormalizer(options ...rules.NormalizerOption) (*normalizer, error) {
 func (n normalizer) Normalize(data map[string]any) (map[string]any, error) {
 	normalizedData := make(map[string]any, len(data))
 	for key, value := range data {
-		fieldType, ok := n.Fields[rules.Field(key)]
-		if !ok {
+		field := schema.Field(key)
+		if !n.HasField(field) {
 			continue
 		}
 
-		normalizedValue, err := normalize(value, fieldType)
+		normalizedValue, err := normalize(value, n.FieldType(field))
 		if err != nil {
 			return nil, err
 		}
@@ -47,17 +48,12 @@ func (n normalizer) Normalize(data map[string]any) (map[string]any, error) {
 	return normalizedData, nil
 }
 
-func normalize(value any, fieldType rules.FieldType) (normalizedValue any, err error) {
+func normalize(value any, fieldType schema.FieldType) (any, error) {
 	if value == nil {
 		return value, nil
 	}
 
-	if fieldType.IsArray() {
-		normalizedValue, err = normalizeArray(value, fieldType)
-	} else {
-		normalizedValue, err = normalizeValue(value, fieldType)
-	}
-
+	normalizedValue, err := normalizeArray(value, fieldType)
 	if err != nil {
 		return nil, err
 	}
@@ -73,10 +69,14 @@ func normalize(value any, fieldType rules.FieldType) (normalizedValue any, err e
 	return normalizedValue, nil
 }
 
-func normalizeArray(value any, fieldType rules.FieldType) (any, error) {
+func normalizeArray(value any, fieldType schema.FieldType) (any, error) {
+	if !fieldType.IsArray() {
+		return normalizeValue(value, fieldType)
+	}
+
 	reflectVal := reflect.ValueOf(value)
 	if reflectVal.Kind() != reflect.Slice {
-		return nil, rules.WrappedError(errInvalidArrayValue, "%v", value)
+		return nil, errors.WrappedError(errInvalidArrayValue, "%v", value)
 	}
 
 	normalizedArray := make([]any, 0, reflectVal.Len())
@@ -99,22 +99,22 @@ func normalizeArray(value any, fieldType rules.FieldType) (any, error) {
 	return normalizedArray, nil
 }
 
-func normalizeValue(value any, fieldType rules.FieldType) (any, error) {
+func normalizeValue(value any, fieldType schema.FieldType) (any, error) {
 	switch fieldType.BaseType() {
-	case rules.Boolean:
+	case schema.Boolean:
 		return normalizeBoolean(value)
-	case rules.Integer:
+	case schema.Integer:
 		return normalizeInteger(value)
-	case rules.String:
+	case schema.String:
 		return normalizeString(value), nil
-	case rules.Float:
+	case schema.Float:
 		return normalizeFloat(value)
-	case rules.Date, rules.Timestamp, rules.DateTime:
+	case schema.Date, schema.Timestamp, schema.DateTime:
 		return normalizeDateTime(value, fieldType)
-	case rules.Object:
-		return normalizeObject(value, fieldType)
+	case schema.Object:
+		return normalizeObject(value, fieldType.ObjectFields())
 	default:
-		return nil, rules.WrappedError(errInvalidValue, "%v, type: %T", value, value)
+		return nil, errors.WrappedError(errInvalidValue, "%v, type: %T", value, value)
 	}
 }
 
@@ -125,12 +125,12 @@ func normalizeBoolean(value any) (bool, error) {
 	case string:
 		boolValue, err := strconv.ParseBool(value)
 		if err != nil {
-			return false, rules.WrappedError(errInvalidBooleanValue, "string value: %s, error: %v", value, err)
+			return false, errors.WrappedError(errInvalidBooleanValue, "string value: %s, error: %v", value, err)
 		}
 
 		return boolValue, nil
 	default:
-		return false, rules.WrappedError(errInvalidBooleanValue, "%v, type: %T", value, value)
+		return false, errors.WrappedError(errInvalidBooleanValue, "%v, type: %T", value, value)
 	}
 }
 
@@ -160,7 +160,7 @@ func normalizeInteger(value any) (int64, error) {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		uintValue := reflectVal.Uint()
 		if uintValue > math.MaxInt64 {
-			return 0, rules.WrappedError(errInvalidIntegerValue, "uint64 value: %d is greater than max int64 value", uintValue)
+			return 0, errors.WrappedError(errInvalidIntegerValue, "uint64 value: %d is greater than max int64 value", uintValue)
 		}
 
 		return int64(uintValue), nil
@@ -169,12 +169,12 @@ func normalizeInteger(value any) (int64, error) {
 	case reflect.String:
 		value, err := normalizeNumberFromString(reflectVal.String())
 		if err != nil {
-			return 0, rules.WrappedError(errInvalidIntegerValue, "%s", err)
+			return 0, errors.WrappedError(errInvalidIntegerValue, "%s", err)
 		}
 
 		return int64(value), nil
 	default:
-		return 0, rules.WrappedError(errInvalidIntegerValue, "%v, type: %T", value, value)
+		return 0, errors.WrappedError(errInvalidIntegerValue, "%v, type: %T", value, value)
 	}
 }
 
@@ -194,31 +194,37 @@ func normalizeFloat(value any) (float64, error) {
 	case reflect.String:
 		value, err := normalizeNumberFromString(reflectVal.String())
 		if err != nil {
-			return 0, rules.WrappedError(errInvalidFloatValue, "%s", err)
+			return 0, errors.WrappedError(errInvalidFloatValue, "%s", err)
 		}
 
 		return value, nil
 	default:
-		return 0, rules.WrappedError(errInvalidFloatValue, "%v, type: %T", value, value)
+		return 0, errors.WrappedError(errInvalidFloatValue, "%v, type: %T", value, value)
 	}
 }
 
-func normalizeDateTime(value any, fieldType rules.FieldType) (any, error) {
-	baseType := fieldType.BaseType()
+func normalizeDateTime(value any, fieldType schema.FieldType) (any, error) {
+	var (
+		baseType  = fieldType.BaseType()
+		timeValue time.Time
+		err       error
+	)
 
-	stringValue, ok := value.(string)
-	if !ok {
-		return nil, rules.WrappedError(errInvalidValue, "%s value: %v", baseType, value)
-	}
+	switch value := value.(type) {
+	case string:
+		layout := fieldType.Layout()
+		if layout == nil {
+			return nil, errors.WrappedError(errInvalidValue, "layout is nil for %s", baseType)
+		}
 
-	layout := fieldType.Layout()
-	if layout == nil {
-		return nil, rules.WrappedError(errInvalidValue, "layout is nil for %s", baseType)
-	}
-
-	parsedTime, err := time.Parse(*layout, stringValue)
-	if err != nil {
-		return nil, rules.WrappedError(errInvalidValue, "%s value: string %s cannot be formatted", baseType, stringValue)
+		timeValue, err = time.Parse(*layout, value)
+		if err != nil {
+			return nil, errors.WrappedError(errInvalidValue, "%s value: string %s cannot be formatted", baseType, value)
+		}
+	case time.Time:
+		timeValue = value
+	default:
+		return nil, errors.WrappedError(errInvalidValue, "%v, type: %T", value, value)
 	}
 
 	layoutFormat, err := baseType.LayoutFormat()
@@ -226,20 +232,18 @@ func normalizeDateTime(value any, fieldType rules.FieldType) (any, error) {
 		return nil, err
 	}
 
-	return parsedTime.Format(layoutFormat), nil
+	return timeValue.Format(layoutFormat), nil
 }
 
-func normalizeObject(value any, fieldType rules.FieldType) (any, error) {
+func normalizeObject(value any, objectFields map[schema.Field]schema.FieldType) (any, error) {
 	valueMap, ok := value.(map[string]any)
 	if !ok {
-		return nil, rules.WrappedError(errInvalidObjectValue, "%v", value)
+		return nil, errors.WrappedError(errInvalidObjectValue, "%v", value)
 	}
-
-	objectFields := fieldType.ObjectFields()
 
 	normalizedObject := make(map[string]any, len(objectFields))
 	for key, val := range valueMap {
-		objectField, ok := objectFields[rules.Field(key)]
+		objectField, ok := objectFields[schema.Field(key)]
 		if !ok {
 			continue
 		}
@@ -257,11 +261,15 @@ func normalizeObject(value any, fieldType rules.FieldType) (any, error) {
 
 func validateEnum(normalizedValue any, enumValues []any, isArray bool) error {
 	if !isArray {
-		if normalizedValue != nil && !slices.Contains(enumValues, normalizedValue) {
-			return rules.WrappedError(errInvalidEnumValue, "value: %v", normalizedValue)
+		if normalizedValue == nil {
+			return nil
 		}
 
-		return nil
+		if slices.Contains(enumValues, normalizedValue) {
+			return nil
+		}
+
+		return errors.WrappedError(errInvalidEnumValue, "value: %v", normalizedValue)
 	}
 
 	normalizedValueArray, ok := normalizedValue.([]any)
@@ -271,8 +279,7 @@ func validateEnum(normalizedValue any, enumValues []any, isArray bool) error {
 	}
 
 	for _, value := range normalizedValueArray {
-		err := validateEnum(value, enumValues, false)
-		if err != nil {
+		if err := validateEnum(value, enumValues, false); err != nil {
 			return err
 		}
 	}

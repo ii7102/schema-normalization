@@ -1,10 +1,12 @@
-package rules
+package schema
 
 import (
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ii7102/schema-normalization/errors"
 )
 
 // Field is a string representation of a field name.
@@ -62,7 +64,7 @@ func (bt BaseType) LayoutFormat() (string, error) {
 	case DateTime:
 		return time.DateTime, nil
 	default:
-		return "", WrappedError(errBaseTypeWithoutLayout, "base type %s does not have a layout", bt)
+		return "", errors.WrappedError(errBaseTypeWithoutLayout, "base type %s does not have a layout", bt)
 	}
 }
 
@@ -122,6 +124,17 @@ func (ft FieldType) Layout() *string {
 	return ft.layout
 }
 
+// SetLayout validates the given layout and sets it to the given fieldType.
+func (ft *FieldType) SetLayout(layout string) error {
+	if err := validateDateTime(layout, ft.baseType); err != nil {
+		return err
+	}
+
+	ft.layout = &layout
+
+	return nil
+}
+
 // EnumValues returns the enum values for the given fieldType.
 func (ft FieldType) EnumValues() enumValues {
 	if ft.enum == nil {
@@ -165,6 +178,40 @@ func (ft FieldType) ObjectFields() map[Field]FieldType {
 	}
 
 	return ft.object.fields
+}
+
+// SetObjectFields validates the given object fields and sets them to the given fieldType.
+func (ft *FieldType) SetObjectFields(objectFields map[Field]FieldType) error {
+	if ft.baseType != Object {
+		return errors.WrappedError(errFieldTypeIsNotAnObject, "field type %s", ft.baseType)
+	}
+
+	if err := validateObjectFields(objectFields); err != nil {
+		return err
+	}
+
+	ft.object = &object{fields: objectFields}
+
+	return nil
+}
+
+// AddObjectField validates the given field and fieldType and adds them to the given fieldType.
+func (ft *FieldType) AddObjectField(field Field, fieldType FieldType) error {
+	if ft.object == nil || ft.object.fields == nil {
+		return errors.WrappedError(errObjectFieldsNotSet, "field type %s", ft.baseType)
+	}
+
+	if ft.baseType != Object {
+		return errors.WrappedError(errFieldTypeIsNotAnObject, "field type %s", ft.baseType)
+	}
+
+	if fieldType.baseType == Object {
+		return errors.WrappedError(errNestedObjectsAreNotSupported, "object field '%s' cannot be of type object ", field)
+	}
+
+	ft.object.fields[field] = fieldType
+
+	return nil
 }
 
 func (ft FieldType) String() string {
